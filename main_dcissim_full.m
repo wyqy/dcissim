@@ -14,9 +14,9 @@ para_sim_step = 1/1e2;  % 时间步长
 % 输入信号 - 确定部分
 para_sim_period = 20;  % 输入信号周期 (可选)
 % 输入信号 - 随机部分
-para_sim_x_snr = 50;  % 状态信号基础信噪比
-para_sim_y_snr = 50;  % 输出信号基础信噪比
-para_sim_u_snr = 50;  % 输入信号基础信噪比
+para_sim_x_snr = 30;  % 状态信号基础信噪比
+para_sim_y_snr = 30;  % 输出信号基础信噪比
+para_sim_u_snr = 30;  % 输入信号基础信噪比
 para_sim_xyu_snr = [repmat(para_sim_x_snr, [para_xsize 1]); repmat(para_sim_y_snr, [para_ysize 1]); repmat(para_sim_u_snr, [para_usize 1])];
 % 算法参数
 para_iden_cutted_period = 1;  % 切除最开始未进入中心流形的部分

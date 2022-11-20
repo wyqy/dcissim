@@ -5,6 +5,7 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yn, un)
     % 保存步进
     persistent is_inited n 
     persistent x_size_sim y_isim u_isim mat_x_sim mat_a_sim mat_b_sim mat_c_sim mat_d_sim
+    persistent cov_zr_innovation cov_zrt_innovation cov_zrt_real innovation_mat_k innovation_mat_covariance
     
     % 提取参数
     y_size = iden_struct.y_size;
@@ -31,11 +32,10 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yn, un)
     % 初始化参数
     if isempty(is_inited)
         v_size = size(mat_s, 1);
-        
         n = 0;
-        x_size_sim = 1;
-        y_isim = zeros(y_size, v_size); u_isim = zeros(u_size, v_size);
+        x_size_sim = 1; y_isim = zeros(y_size, v_size); u_isim = zeros(u_size, v_size);
         mat_x_sim = zeros(1, v_size); mat_a_sim = 0; mat_b_sim = zeros(1, u_size); mat_c_sim = zeros(y_size, 1); mat_d_sim = zeros(y_size, u_size);
+        cov_zr_innovation = zeros(1+y_size, 1+y_size); cov_zrt_innovation = zeros(1+y_size+u_size, u_size); cov_zrt_real = zeros(1+y_size+u_size, u_size); innovation_mat_k = zeros(1, y_size); innovation_mat_covariance = zeros(y_size, y_size);
         is_inited = 1;
     end
 
@@ -71,10 +71,13 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yn, un)
             % ISIM辨识
             vn = sin((online_regressor_frequencies*n) + online_regressor_phi);
             [y_isim, u_isim] = idenISIM(yn, un, vn, 'recursive');
-            % SIM辨识
+            % 节省计算时间
             if mod(n, period_samples) == 0
+                % SIM辨识
                 [mat_a_sim, mat_c_sim, x_size_sim] = idenACN(y_isim, u_isim, mat_s, x_size_upbound, online_sim_x_size, online_sim_x_size_type);
                 [mat_b_sim, mat_d_sim, mat_x_sim] = idenBDX(y_isim, u_isim, mat_s, mat_a_sim, mat_c_sim, x_size_sim, sim_ss_bdx_type, sim_ss_d_type);
+                % 方差辨识
+                [cov_zr_innovation, cov_zrt_innovation, cov_zrt_real, innovation_mat_k, innovation_mat_covariance] = idenCovariance(yn, un, vn, y_isim, u_isim, mat_a_sim, mat_c_sim, online_cov_order, online_cov_order_type);  % (可能)询问阶数
             end
         case 'offline-test'  % 离线-间隔n次进行 (避免速度过慢, 下同)
             % 参数计算与预处理

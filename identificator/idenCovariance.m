@@ -1,5 +1,6 @@
 function [cov_zr_innovation, cov_zrt_innovation, cov_zrt_real, innovation_mat_k, innovation_mat_covariance] = idenCovariance(yn, un, vn, y_isim, u_isim, mat_a_sim, mat_c_sim, cov_order, cov_order_type)
 %IDENCOVARIANCE 辨识方差参数
+% 针对存在互协方差与否提供不同的估计
 
     % 计算各阶矩
     % 参数计算

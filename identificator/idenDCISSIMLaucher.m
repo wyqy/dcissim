@@ -51,9 +51,12 @@ function ret_struct = idenDCISSIMLaucher(un_test, varargin)
     % 限定方差估计为全激励频率时使用
     if strcmp(isim_excitation_type, 'reduced'), online_cov_order_type = 'null'; end
     % 对于在线辨识 - 初始化参数
-    online_regressor = idenRegressor(period_samples, frequencies, 1, 'recursive');
     if strcmp(dcissim_type, 'online') || strcmp(dcissim_type, 'online-test')
-        [~, ~] = idenISIM(zeros(y_size, 1), zeros(u_size, 1), zeros(v_size, 1), 'recursive');
+        v_size = size(mat_s, 1);
+        online_regressor = idenRegressor(period_samples, frequencies, 1, 'recursive');
+        idenISIM(zeros(y_size, 1), zeros(u_size, 1), zeros(v_size, 1), 'recursive');
+    else
+        online_regressor = struct('excitation_frequencies', 0, 'excitation_phi', 0);
     end
    
     % 返回值

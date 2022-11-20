@@ -47,28 +47,43 @@ un = sim_result_struct.un;
 yn = sim_result_struct.yn;
 period_samples = sim_result_struct.period_samples;
 
-%% 辨识系统参数 - 非全量离线
+%% 辨识系统参数 - 非全量在线
 % 初始化
-iden_offline_init_struct = idenDCISSIMLaucher(un, 'y_size', size(yn, 1), 'u_size', size(un, 1), 'period_samples', period_samples, 'cutted_periods', para_iden_cutted_period, ...
-    'dcissim_type', 'offline', 'isim_excitation_type', para_iden_isim_excitation_type, 'x_size_upbound', para_iden_x_size_bound, 'sim_ss_bdx_type', para_iden_sim_ss_bdx_type, 'sim_ss_d_type', para_iden_sim_ss_d_type, ...
-    'online_sim_x_size_type', 'ask', 'online_cov_order_type', 'ask');
-% 离线辨识
-iden_offline_result_struct = idenDCISSIMRunner(iden_offline_init_struct, yn, un);
+iden_online_init_struct = idenDCISSIMLaucher(un, 'y_size', size(yn, 1), 'u_size', size(un, 1), 'period_samples', period_samples, 'cutted_periods', para_iden_cutted_period, ...
+    'dcissim_type', 'online', 'isim_excitation_type', para_iden_isim_excitation_type, 'x_size_upbound', para_iden_x_size_bound, 'sim_ss_bdx_type', para_iden_sim_ss_bdx_type, 'sim_ss_d_type', para_iden_sim_ss_d_type, ...
+    'online_sim_x_size_type', 'fixed', 'online_cov_order_type', 'fixed', 'online_sim_x_size', 4, 'online_cov_order', 50);
+% 在线辨识
+iden_online_log_period = fix(0.1*period_samples);
+iden_online_log_size = fix(sim_excitation_samples/iden_online_log_period);
+iden_online_result_struct = cell(iden_online_log_size, 1);
+iden_online_location = 1;
+for iter_data = 1:sim_excitation_samples
+    if mod(iter_data, iden_online_log_period) == 0
+        iden_online_result_struct{iden_online_location} = idenDCISSIMRunner(iden_online_init_struct, yn(:, iter_data), un(:, iter_data));
+        iden_online_location = iden_online_location + 1;
+    else
+        idenDCISSIMRunner(iden_online_init_struct, yn(:, iter_data), un(:, iter_data));
+    end
+end
+
 
 %% 验证辨识结果
-analysis_x_size = size(iden_offline_result_struct.A, 1);
+% 参数范数误差
+analysis_ynorm2_identified = zeros(iden_online_log_size, 1);
+for iter_ana = 1:iden_online_log_size
+    [analysis_ynorm2_identified(iter_ana), ~] = anaNorm(iden_online_result_struct{iter_ana}.Y);
+end
+figure;
+plot(1:iden_online_log_period:sim_excitation_samples, analysis_ynorm2_identified);
+% 状态空间模型
+analysis_x_size = size(iden_online_result_struct{end}.A, 1);
 analysis_x0 = zeros(analysis_x_size, 1);
 analysis_original_ss = ss(sim_plant_struct.A, sim_plant_struct.B, sim_plant_struct.C, sim_plant_struct.D, para_sim_step);
-analysis_indentified_idss = idss(iden_offline_result_struct.A, iden_offline_result_struct.B, iden_offline_result_struct.C, iden_offline_result_struct.D, iden_offline_result_struct.K, ...
-    analysis_x0, para_sim_step, 'NoiseVariance', iden_offline_result_struct.cov_innovation);
+analysis_indentified_idss = idss(iden_online_result_struct{end}.A, iden_online_result_struct{end}.B, iden_online_result_struct{end}.C, iden_online_result_struct{end}.D, iden_online_result_struct{end}.K, ...
+    analysis_x0, para_sim_step, 'NoiseVariance', iden_online_result_struct{end}.cov_innovation);
 % 特征值
 disp(['Eig(A) of original system are: ', mat2str(eig(analysis_original_ss.A), 2)]);
 disp(['Eig(A) of identified system are: ', mat2str(eig(analysis_indentified_idss.A), 2)]);
 % Bode图
-analysis_handle_bode = anaBode(analysis_original_ss, analysis_indentified_idss);
-% H范数
-[analysis_original_h2, analysis_original_hinf] = anaNorm(analysis_original_ss);
-[analysis_identified_h2, analysis_identified_hinf] = anaNorm(analysis_indentified_idss);
-disp(['H2 norm of two systems are: ', mat2str(analysis_identified_h2, 4), '/', mat2str(analysis_original_h2, 4), '(ind/ori)']);
-disp(['Hinf norm of two systems are: ', mat2str(analysis_identified_hinf, 4), '/', mat2str(analysis_identified_hinf, 4), '(ind/ori)']);
+handle_bode = anaBode(analysis_original_ss, analysis_indentified_idss);
 
