@@ -24,6 +24,7 @@ para_iden_x_size_bound = 6;   % X的变量数上界
 para_iden_isim_excitation_type = 'reduced';  % 使用激励信号的数量
 para_iden_sim_ss_bdx_type = 'analytical';  % BDX辨识方法: 'analytical', 'optimize'
 para_iden_sim_ss_d_type = 'null';     % 是否假定D矩阵为0
+para_iden_cov_cross_type = 'null';  % 是否假定存在互协方差
 
 % 参数计算
 para_sim_samples = fix(para_sim_duration/para_sim_step);  % 仿真采样数
@@ -50,17 +51,18 @@ period_samples = sim_result_struct.period_samples;
 %% 辨识系统参数 - 非全量离线
 % 初始化
 iden_offline_init_struct = idenDCISSIMLaucher(un, 'y_size', size(yn, 1), 'u_size', size(un, 1), 'period_samples', period_samples, 'cutted_periods', para_iden_cutted_period, ...
-    'dcissim_type', 'offline', 'isim_excitation_type', para_iden_isim_excitation_type, 'x_size_upbound', para_iden_x_size_bound, 'sim_ss_bdx_type', para_iden_sim_ss_bdx_type, 'sim_ss_d_type', para_iden_sim_ss_d_type, ...
+    'dcissim_type', 'offline', 'isim_excitation_type', para_iden_isim_excitation_type, 'x_size_upbound', para_iden_x_size_bound, 'sim_ss_bdx_type', para_iden_sim_ss_bdx_type, 'sim_ss_d_type', para_iden_sim_ss_d_type, 'cov_cross_type', para_iden_cov_cross_type, ...
     'online_sim_x_size_type', 'ask', 'online_cov_order_type', 'ask');
 % 离线辨识
 iden_offline_result_struct = idenDCISSIMRunner(iden_offline_init_struct, yn, un);
 
 %% 验证辨识结果
-analysis_x_size = size(iden_offline_result_struct.A, 1);
-analysis_x0 = zeros(analysis_x_size, 1);
+analysis_identified_x_size = size(iden_offline_result_struct.A, 1);
+analysis_y_size = size(iden_offline_result_struct.C, 1);
+analysis_x0 = zeros(analysis_identified_x_size, 1);
 analysis_original_ss = ss(sim_plant_struct.A, sim_plant_struct.B, sim_plant_struct.C, sim_plant_struct.D, para_sim_step);
 analysis_indentified_idss = idss(iden_offline_result_struct.A, iden_offline_result_struct.B, iden_offline_result_struct.C, iden_offline_result_struct.D, iden_offline_result_struct.K, ...
-    analysis_x0, para_sim_step, 'NoiseVariance', iden_offline_result_struct.cov_innovation);
+    analysis_x0, para_sim_step, 'NoiseVariance', iden_offline_result_struct.cov_all(analysis_identified_x_size+1:analysis_identified_x_size+analysis_y_size, analysis_identified_x_size+1:analysis_identified_x_size+analysis_y_size));
 % 特征值
 disp(['Eig(A) of original system are: ', mat2str(eig(analysis_original_ss.A), 2)]);
 disp(['Eig(A) of identified system are: ', mat2str(eig(analysis_indentified_idss.A), 2)]);

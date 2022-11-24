@@ -31,14 +31,14 @@ function ret_struct = genPlantSimulation(varargin)
     % 生成噪声信号
     xyun_test = [xn_test; yn_test; un_test];
     xyun_test = xyun_test(:, end-period_samples+1:end);
-    noise = genNoiser(plant_info, samples, xyu_snr, xyun_test);
+    [noise, covariance] = genNoiser(plant_info, samples, xyu_snr, xyun_test);
 
     % 生成仿真数据
     x_init = zeros(x_size, 1);
     [xn, yn, un] = genPlantModel(plant_info, x_init, excitation, noise);
     
     % 返回值
-    ret_struct = struct('xn', xn, 'yn', yn, 'un', un, 'noise', noise, 'period_samples', period_samples);
+    ret_struct = struct('xn', xn, 'yn', yn, 'un', un, 'noise', noise, 'period_samples', period_samples, 'covariance', covariance);
 
 end
 

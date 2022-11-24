@@ -1,4 +1,4 @@
-function transferred_noise = genNoiser(plant_info, samples, xyu_snr, xyun)
+function [transferred_noise, scale_covariance_rational] = genNoiser(plant_info, samples, xyu_snr, xyun)
 %GENNOISER 根据返回满足指定信噪比和协方差矩阵的扰动信号
 
     % 参数提取

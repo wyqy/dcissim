@@ -13,6 +13,7 @@ function ret_struct = idenDCISSIMLaucher(un_test, varargin)
     addParameter(parser, 'x_size_upbound', 1, @(i)(isnumeric(i)&&isscalar(i)));
     addParameter(parser, 'sim_ss_bdx_type', 'analytical', @(i)(ischar(i)));
     addParameter(parser, 'sim_ss_d_type', 'null', @(i)(ischar(i)));
+    addParameter(parser, 'cov_cross_type', 'null', @(i)(ischar(i)));
     addParameter(parser, 'online_sim_x_size_type', 'estimate', @(i)(ischar(i)));
     addParameter(parser, 'online_cov_order_type', 'estimate', @(i)(ischar(i)));
     addParameter(parser, 'online_sim_x_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
@@ -22,12 +23,13 @@ function ret_struct = idenDCISSIMLaucher(un_test, varargin)
     y_size = parser.Results.y_size;  % 输出信号维数
     u_size = parser.Results.u_size;  % 输出信号维数
     period_samples = parser.Results.period_samples;  % 单周期采样点数
-    cutted_periods = parser.Results.cutted_periods;  % 切除的非稳态部分, 按周期计数 (only in 离线)
+    cutted_periods = parser.Results.cutted_periods;  % 切除的非稳态部分, 按周期计数 (only in 离线和方差估计)
     dcissim_type = parser.Results.dcissim_type;  % 算法运行方式 - 离线or在线
     isim_excitation_type = parser.Results.isim_excitation_type;  % ISIM激励方式
     x_size_upbound = parser.Results.x_size_upbound;  % 状态变量上界
     sim_ss_bdx_type = parser.Results.sim_ss_bdx_type;  % SIM求解方式
     sim_ss_d_type = parser.Results.sim_ss_d_type;  % D矩阵是否辨识
+    cov_cross_type = parser.Results.cov_cross_type;  % 是否具有协方差
     online_sim_x_size_type = parser.Results.online_sim_x_size_type;  % (在线时)状态变量估计方式
     online_cov_order_type = parser.Results.online_cov_order_type;  % 协方差估计方式
     online_sim_x_size = parser.Results.online_sim_x_size;  % 预定义状态变量大小
@@ -61,7 +63,7 @@ function ret_struct = idenDCISSIMLaucher(un_test, varargin)
    
     % 返回值
     ret_struct = struct('y_size', y_size, 'u_size', u_size, 'period_samples', period_samples, 'cutted_periods', cutted_periods, ...
-        'dcissim_type', dcissim_type, 'isim_excitation_type', isim_excitation_type, 'x_size_upbound', x_size_upbound, 'sim_ss_bdx_type', sim_ss_bdx_type, 'sim_ss_d_type', sim_ss_d_type, ...
+        'dcissim_type', dcissim_type, 'isim_excitation_type', isim_excitation_type, 'x_size_upbound', x_size_upbound, 'sim_ss_bdx_type', sim_ss_bdx_type, 'sim_ss_d_type', sim_ss_d_type, 'cov_cross_type', cov_cross_type, ...
         'frequencies', frequencies, 'mat_s', mat_s, ...
         'online_regressor', online_regressor, 'online_sim_x_size_type', online_sim_x_size_type, 'online_cov_order_type', online_cov_order_type, 'online_sim_x_size', online_sim_x_size, 'online_cov_order', online_cov_order);
 
