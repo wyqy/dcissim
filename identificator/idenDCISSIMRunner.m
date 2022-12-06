@@ -43,7 +43,6 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yn, un)
         is_inited = 1;
     end
 
-
     % 离线or在线
     switch dcissim_type
         case 'offline'  % 离线辨识

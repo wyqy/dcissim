@@ -4,7 +4,7 @@
 para_xsize = 4; para_ysize = 1; para_usize = 1;
 
 % 是否全量辨识
-para_isfull = true; %#ok<*UNRCH>
+para_isfull = false; %#ok<*UNRCH>
 if para_isfull
     para_iden_isim_excitation_type = 'full';
     % 时间参数
@@ -26,16 +26,16 @@ para_sim_u_snr = 20;  % 输入信号基础信噪比
 para_sim_xyu_snr = [repmat(para_sim_x_snr, [para_xsize 1]); repmat(para_sim_y_snr, [para_ysize 1]); repmat(para_sim_u_snr, [para_usize 1])];
 % 算法参数
 para_iden_cutted_period = 1;  % 切除最开始未进入中心流形的部分
-para_iden_x_size_bound = 10;   % X的变量数上界
+para_iden_x_size_bound = 6;   % X的变量数上界
 para_iden_sim_ss_bdx_type = 'analytical';  % BDX辨识方法: 'analytical', 'optimize'
 para_iden_sim_ss_d_type = 'null';  % 是否假定D矩阵为0
 para_iden_cov_cross_type = 'null';  % 是否假定存在互协方差
 
 % 随机模型个数
-para_experiment_count = 100;
+para_experiment_count = 1;
 result_original_cell = cell(para_experiment_count, 1);
-result_dcissim_cell = cell(para_experiment_count, 1);
-result_sim_cell = cell(para_experiment_count, 1);
+result_dcissim_cell = cell(para_experiment_count, 1); time_dcissim = zeros(para_experiment_count, 1);
+result_sim_cell = cell(para_experiment_count, 1); time_sim = zeros(para_experiment_count, 1);
 
 % 随机数种子
 % rng('shuffle', 'twister'); seed = randi(intmax('uint32'), 'uint32'); % 非固定参数
@@ -59,20 +59,27 @@ for iter_exp = 1:para_experiment_count
     result_original_cell{iter_exp} = sim_result_struct.plant_info;
     
     %% 辨识系统参数 - dcISSIM
+    tic;
     % 初始化
     iden_dcissim_init = idenDCISSIMLaucher(un, 'y_size', size(yn, 1), 'u_size', size(un, 1), 'period_samples', sim_period_samples, 'cutted_periods', para_iden_cutted_period, ...
         'dcissim_type', 'offline', 'isim_excitation_type', para_iden_isim_excitation_type, 'x_size_upbound', para_iden_x_size_bound, 'sim_ss_bdx_type', para_iden_sim_ss_bdx_type, 'sim_ss_d_type', para_iden_sim_ss_d_type, 'cov_cross_type', para_iden_cov_cross_type, ...
         'sim_x_size_type', 'fixed', 'cov_order_type', 'estimate', 'sim_x_size', para_xsize);
     % 辨识
     result_dcissim_cell{iter_exp} = idenDCISSIMRunner(iden_dcissim_init, yn, un);
+    % 计时
+    time_dcissim(iter_exp) = toc;
 
     %% 辨识系统参数 - SIM
+    tic;
     % 初始化
     iden_sim_data = iddata(yn.', un.', 1);
     iden_sim_data.Period = repmat(sim_period_samples, [para_usize, 1]);
     iden_sim_option = n4sidOptions('InitialState', 'zero', 'Focus', 'simulation', 'EstimateCovariance', true, 'Display', 'off');
     % 辨识
     result_sim_cell{iter_exp} = n4sid(iden_sim_data, para_xsize, 'Feedthrough', 0, iden_sim_option);
+    % 计时
+    time_sim(iter_exp) = toc;
+
 end
 
 %% 验证确定性参数辨识结果
@@ -147,11 +154,11 @@ if para_isfull, disp(['R2 of dCov(input) as norm: ', mat2str(analysis_criterion_
 disp(['R2 of dCov(output) as norm: ', mat2str(analysis_criterion_outcov, 2)]);
 
 %% H2差异最大, 中位数和最小的Bode图
-[~, analysis_hinf_sort] = sort(analysis_error_h2(1), 'descend');
+[~, analysis_hinf_sort] = sort(analysis_error_h2(1, :), 'descend');
 
-% analysis_bode_location = analysis_hinf_sort(1); fig = anaPlotBode(result_original_cell{analysis_bode_location}, result_identified_cell{analysis_bode_location}, 'sample', para_sim_step); sgtitle(fig, 'Bode plot for maximum d\_{Hinf}');
-% analysis_bode_location = analysis_hinf_sort(ceil(para_experiment_count/2)); fig = anaPlotBode(result_original_cell{analysis_bode_location}, result_identified_cell{analysis_bode_location}, 'sample', para_sim_step); sgtitle(fig, 'Bode plot for medium d\_{Hinf}');
-analysis_bode_location = analysis_hinf_sort(end); fig = anaPlotBode(result_original_cell{analysis_bode_location}, result_dcissim_cell{analysis_bode_location}, 'sample', para_sim_step); sgtitle(fig, 'Bode plot for minimum d\_{Hinf}');
+% analysis_bode_location = analysis_hinf_sort(1); fig = anaPlotBode(result_original_cell{analysis_bode_location}, result_dcissim_cell{analysis_bode_location}, 'sample', para_sim_step); sgtitle(fig, 'Bode plot for maximum d\_{Hinf}');
+% analysis_bode_location = analysis_hinf_sort(ceil(para_experiment_count/2)); fig = anaPlotBode(result_original_cell{analysis_bode_location}, result_dcissim_cell{analysis_bode_location}, 'sample', para_sim_step); sgtitle(fig, 'Bode plot for medium d\_{Hinf}');
+% analysis_bode_location = analysis_hinf_sort(end); fig = anaPlotBode(result_original_cell{analysis_bode_location}, result_dcissim_cell{analysis_bode_location}, 'sample', para_sim_step); sgtitle(fig, 'Bode plot for minimum d\_{Hinf}');
 
 %% 输出方差差异最小的矩估计图
 [~, analysis_cov_sort] = sort(mean(analysis_outcov_error_norm, 1), 'descend');
@@ -159,7 +166,13 @@ analysis_bode_location = analysis_hinf_sort(end); fig = anaPlotBode(result_origi
 analysis_cov_location = analysis_cov_sort(end);
 temp_cov_ori = shiftdim(analysis_outcov_norm(1, :, analysis_cov_location));
 temp_cov_ind = shiftdim(analysis_outcov_norm(2, :, analysis_cov_location));
-ax = anaPlotCov(temp_cov_ori, temp_cov_ind); title(ax, 'Coavariance plot for minimum d\_{Hinf}');
+% ax = anaPlotCov(temp_cov_ori, temp_cov_ind); title(ax, 'Coavariance plot for minimum d\_{Hinf}');
+
+%% 输出时间
+disp(['Time used: ', mat2str(mean(time_dcissim), 2), ' / ', mat2str(mean(time_sim), 2)]);
+
+%% 保存参数
+save('results\reduced_many_auto.mat', '-v7.3');
 
 %% 残差估计
 % res_t = 0:para_sim_step:(sim_excitation_samples-1)*para_sim_step;
