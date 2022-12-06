@@ -26,7 +26,7 @@ function [y_isim, u_isim] = idenISIM(yn, un, vn, isim_lsq_type)
                 u_size = size(un, 1);
                 v_size = size(vn, 1);
                 % 矩阵生成
-                rng('shuffle', 'twister');
+                rng(uint32(randi(intmax('uint32'), 1)), 'simdTwister');
                 mat_lambda = eye(y_size+u_size);
                 mat_p = 10e5 * eye((y_size+u_size)*v_size) + randi(10e4);
                 vec_r = zeros((y_size+u_size)*v_size, 1);

@@ -3,7 +3,7 @@ function [norm2, norminf] = anaNorm(ss_model_or_matrix)
 
     if isnumeric(ss_model_or_matrix)
         norm2 = norm(ss_model_or_matrix, 'fro');
-        norminf = hinfnorm(ss_model_or_matrix, 2);
+        norminf = norm(ss_model_or_matrix, 2);
     else
         norm2 = norm(ss_model_or_matrix, 2);
         norminf = hinfnorm(ss_model_or_matrix);

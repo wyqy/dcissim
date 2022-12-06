@@ -14,10 +14,10 @@ function ret_struct = idenDCISSIMLaucher(un_test, varargin)
     addParameter(parser, 'sim_ss_bdx_type', 'analytical', @(i)(ischar(i)));
     addParameter(parser, 'sim_ss_d_type', 'null', @(i)(ischar(i)));
     addParameter(parser, 'cov_cross_type', 'null', @(i)(ischar(i)));
-    addParameter(parser, 'online_sim_x_size_type', 'estimate', @(i)(ischar(i)));
-    addParameter(parser, 'online_cov_order_type', 'estimate', @(i)(ischar(i)));
-    addParameter(parser, 'online_sim_x_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
-    addParameter(parser, 'online_cov_order', 1, @(i)(isnumeric(i)&&isscalar(i)));
+    addParameter(parser, 'sim_x_size_type', 'estimate', @(i)(ischar(i)));
+    addParameter(parser, 'cov_order_type', 'estimate', @(i)(ischar(i)));
+    addParameter(parser, 'sim_x_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
+    addParameter(parser, 'cov_order', 1, @(i)(isnumeric(i)&&isscalar(i)));
     % 输入提取
     parse(parser, varargin{:});
     y_size = parser.Results.y_size;  % 输出信号维数
@@ -30,10 +30,10 @@ function ret_struct = idenDCISSIMLaucher(un_test, varargin)
     sim_ss_bdx_type = parser.Results.sim_ss_bdx_type;  % SIM求解方式
     sim_ss_d_type = parser.Results.sim_ss_d_type;  % D矩阵是否辨识
     cov_cross_type = parser.Results.cov_cross_type;  % 是否具有协方差
-    online_sim_x_size_type = parser.Results.online_sim_x_size_type;  % (在线时)状态变量估计方式
-    online_cov_order_type = parser.Results.online_cov_order_type;  % 协方差估计方式
-    online_sim_x_size = parser.Results.online_sim_x_size;  % 预定义状态变量大小
-    online_cov_order = parser.Results.online_cov_order;  % 预定义自协方差估计阶数
+    sim_x_size_type = parser.Results.sim_x_size_type;  % 状态变量估计方式
+    cov_order_type = parser.Results.cov_order_type;  % 协方差估计方式
+    sim_x_size = parser.Results.sim_x_size;  % 预定义状态变量大小
+    cov_order = parser.Results.cov_order;  % 预定义自协方差估计阶数
 
     % 运行时准备
     % 清除临时存储
@@ -48,24 +48,19 @@ function ret_struct = idenDCISSIMLaucher(un_test, varargin)
             frequencies = reducedExcitationFrequencies(un_test, period_samples, frequencies_bound);
         otherwise, frequencies = 0;
     end
-    % 计算回归元
+    % 初始化回归元
     mat_s = matSIniter(period_samples, frequencies);
-    % 限定方差估计为全激励频率时使用
-    if strcmp(isim_excitation_type, 'reduced'), online_cov_order_type = 'null'; end
+    regressor = idenRegressor(period_samples, frequencies, 1, 'recursive');
     % 对于在线辨识 - 初始化参数
     if strcmp(dcissim_type, 'online') || strcmp(dcissim_type, 'online-test')
         v_size = size(mat_s, 1);
-        online_regressor = idenRegressor(period_samples, frequencies, 1, 'recursive');
         idenISIM(zeros(y_size, 1), zeros(u_size, 1), zeros(v_size, 1), 'recursive');
-    else
-        online_regressor = struct('excitation_frequencies', 0, 'excitation_phi', 0);
     end
-   
     % 返回值
     ret_struct = struct('y_size', y_size, 'u_size', u_size, 'period_samples', period_samples, 'cutted_periods', cutted_periods, ...
         'dcissim_type', dcissim_type, 'isim_excitation_type', isim_excitation_type, 'x_size_upbound', x_size_upbound, 'sim_ss_bdx_type', sim_ss_bdx_type, 'sim_ss_d_type', sim_ss_d_type, 'cov_cross_type', cov_cross_type, ...
         'frequencies', frequencies, 'mat_s', mat_s, ...
-        'online_regressor', online_regressor, 'online_sim_x_size_type', online_sim_x_size_type, 'online_cov_order_type', online_cov_order_type, 'online_sim_x_size', online_sim_x_size, 'online_cov_order', online_cov_order);
+        'regressor', regressor, 'sim_x_size_type', sim_x_size_type, 'cov_order_type', cov_order_type, 'sim_x_size', sim_x_size, 'cov_order', cov_order);
 
 end
 
@@ -88,7 +83,7 @@ function frequencies = reducedExcitationFrequencies(un_test, period_samples, fre
     harmonic_size = fix(period_samples/2)+1;
 
     % 升维度
-    frequencies_bound = min(round(frequencies_bound*2), harmonic_size);
+    frequencies_bound = min(round(frequencies_bound*3), harmonic_size);  % 3为经验参数
     % FFT
     ufreq = fft(un_test, period_samples, 2);
     ufreq_abs = abs(ufreq(:, 1:harmonic_size));
@@ -96,6 +91,8 @@ function frequencies = reducedExcitationFrequencies(un_test, period_samples, fre
     % 局部极值样条包络交点法提取频率点
     frequencies_selection = peakFinder(ufreq_abs, frequencies_bound);
     
+    % plot
+    % figure; plot(ufreq_abs); hold on; stem(max(ufreq_abs, [], 'all')*frequencies_selection);
     % 返回值
     frequencies = 0:harmonic_size-1;
     frequencies = frequencies(logical(frequencies_selection));
@@ -182,4 +179,3 @@ function mat_s = matSIniter(period_samples, frequencies)
         location_base = location_base + 2;
     end
 end
-

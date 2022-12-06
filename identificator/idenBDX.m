@@ -95,7 +95,7 @@ function [mat_b_sim, mat_d_sim, mat_x_sim] = optimalSolver(y_isim, u_isim, mat_s
     decompose_character_mat_a_nneg = decompose_character_mat_a(v_eig_vec_angle >= 0);
     
     % 用优化方法计算结果
-    rng('shuffle', 'twister'); seed = randi(intmax('uint32')); rs = RandStream('dsfmt19937', 'Seed', seed);
+    seed = uint32(randi(intmax('uint32'), 1)); rs = RandStream('dsfmt19937', 'Seed', seed);
     if sim_ss_d_type == 0, xinit = rand(rs, x_size_sim, u_size);  % 假定 D = 0
     else, xinit = rand(rs, x_size_sim+y_size, u_size); end  % 不做假定
     op_option = optimoptions('lsqnonlin', 'Algorithm', 'trust-region-reflective', ...

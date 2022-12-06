@@ -1,7 +1,10 @@
-function [moments, hnorms] = anaCov(covariance, mat_a, mat_c, out_size)
+function [moments, hnorms] = anaCov(covariance, ss_struct, out_size)
 %ANACOV 根据协方差和(渐近稳定)系统矩阵计算稳态输出矩(输入的矩仅包含状态和输出)
 % 同时返回计算结果和Hnorm-2对比
     
+    % 参数提取
+    mat_a = ss_struct.A;
+    mat_c = ss_struct.C;
     % 参数计算
     z_size = size(mat_a, 1);
     cov_zz = covariance(1:z_size, 1:z_size);

@@ -1,5 +1,5 @@
-function [xn_corrupted, yn_corrupted, un_corrupted] = genPlantModel(plant_info, x_init, un, noise)
-%GENPLANT 模型仿真主函数
+function [xn_corrupted, yn_corrupted, un_corrupted] = plantModel(plant_info, x_init, un, noise)
+%PLANTMODEL 模型仿真主函数
 % x(k+1) = Ax(k) + Bu(k);
 % y(k) = Cx(k) + Du(k);
 

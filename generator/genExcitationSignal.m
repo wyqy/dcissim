@@ -4,8 +4,8 @@ function ret_struct = genExcitationSignal(varargin)
     % 输入解析
     parser = inputParser;
     % 输入定义
-    addParameter(parser, 'signal_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
     addParameter(parser, 'type', 'multisine', @(i)(ischar(i)));
+    addParameter(parser, 'signal_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
     addParameter(parser, 'duration', 1, @(i)(isnumeric(i)&&isscalar(i)));
     addParameter(parser, 'step', 1, @(i)(isnumeric(i)&&isscalar(i)));
     addParameter(parser, 'period', 1, @(i)(isnumeric(i)&&isscalar(i)));
@@ -20,9 +20,9 @@ function ret_struct = genExcitationSignal(varargin)
     % 参数构造
     generator_info = struct( ...
         'multisine_freqs', [0.1,0.3,0.5,0.7,0.9,1,3,5,7,9], 'multisine_usat', [10, 20], ...
-        'function_expression', "sin(n)+n^2+n+3", 'function_step_dutyratio', 0.5, 'function_step_offset', 0.1, 'function_step_usat', [0, 10], ...
-        'outside_source', 'parameter\source.mat', 'outside_name', 'yt', 'outside_fs_name', 'Fs', 'outside_offest', 1/84.8);
-
+        'function_expression', "sin(n)+n^2+n+3", ... % 'function_step_dutyratio', 0.5, 'function_step_offset', 0.1, 'function_step_usat', [0, 10], ...
+        'outside_source', 'parameter\source.mat', 'outside_name', 'yt', 'outside_fs_name', 'Fs', 'outside_offest', 1/84.8, ...
+        'random_mu', 10, 'random_covariance', 20);
     % 参数计算
     signal_sample = fix(signal_duration/signal_step);
     period_sample = fix(signal_period/signal_step);
@@ -35,6 +35,8 @@ function ret_struct = genExcitationSignal(varargin)
             signal = genFunction(generator_info, period_sample, signal_size, signal_step);
         case 'outside'
             signal = genOutside(generator_info, period_sample, signal_size, signal_step);
+        case 'random'
+            signal = genRandom(generator_info, period_sample, signal_size, signal_step);
         otherwise, signal = 0;
     end
     % 修正周期采样点数

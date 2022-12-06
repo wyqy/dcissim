@@ -2,8 +2,8 @@ function [transferred_noise, scale_covariance_rational] = genNoiser(plant_info, 
 %GENNOISER 根据返回满足指定信噪比和协方差矩阵的扰动信号
 
     % 参数提取
-    seed = plant_info.Seed;
-    covariance = plant_info.Cov;
+    seed = plant_info.seed;
+    covariance = plant_info.cov;
 
     % 参数计算
     xyu_size = size(xyun, 1);

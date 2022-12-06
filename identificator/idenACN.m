@@ -44,7 +44,8 @@ function [mat_a_sim, mat_c_sim, x_size_sim] = idenACN(y_isim, u_isim, mat_s, x_s
             x_size_sim = input('Enter the estimated sizes of states: ');
             if ~(isscalar(x_size_sim) && isnumeric(x_size_sim)), x_size_sim = rank(mat_z_qr_mat_r22, 1e-2*max(mat_r22_svd_mat_s)); end
         case 'estimate'
-            x_size_sim = rank(mat_z_qr_mat_r22, 1e-2*max(mat_r22_svd_mat_s));
+            estimate_threshold = 1e-2*mean(mat_r22_svd_mat_s(mat_r22_svd_mat_s > 1e-1*max(mat_r22_svd_mat_s)));
+            x_size_sim = rank(mat_z_qr_mat_r22, estimate_threshold);
         case 'fixed'
             x_size_sim = sim_x_size;
         otherwise, x_size_sim = 1;
