@@ -18,6 +18,7 @@ function ret_struct = idenDCISSIMLaucher(un_test, varargin)
     addParameter(parser, 'cov_order_type', 'estimate', @(i)(ischar(i)));
     addParameter(parser, 'sim_x_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
     addParameter(parser, 'cov_order', 1, @(i)(isnumeric(i)&&isscalar(i)));
+    addParameter(parser, 'cov_est_type', 'simple', @(i)(ischar(i)));
     % 输入提取
     parse(parser, varargin{:});
     y_size = parser.Results.y_size;  % 输出信号维数
@@ -34,6 +35,7 @@ function ret_struct = idenDCISSIMLaucher(un_test, varargin)
     cov_order_type = parser.Results.cov_order_type;  % 协方差估计方式
     sim_x_size = parser.Results.sim_x_size;  % 预定义状态变量大小
     cov_order = parser.Results.cov_order;  % 预定义自协方差估计阶数
+    cov_est_type = parser.Results.cov_est_type;  % 定义方差估计方法
 
     % 运行时准备
     % 清除临时存储
@@ -60,7 +62,8 @@ function ret_struct = idenDCISSIMLaucher(un_test, varargin)
     ret_struct = struct('y_size', y_size, 'u_size', u_size, 'period_samples', period_samples, 'cutted_periods', cutted_periods, ...
         'dcissim_type', dcissim_type, 'isim_excitation_type', isim_excitation_type, 'x_size_upbound', x_size_upbound, 'sim_ss_bdx_type', sim_ss_bdx_type, 'sim_ss_d_type', sim_ss_d_type, 'cov_cross_type', cov_cross_type, ...
         'frequencies', frequencies, 'mat_s', mat_s, ...
-        'regressor', regressor, 'sim_x_size_type', sim_x_size_type, 'cov_order_type', cov_order_type, 'sim_x_size', sim_x_size, 'cov_order', cov_order);
+        'regressor', regressor, 'sim_x_size_type', sim_x_size_type, 'cov_order_type', cov_order_type, 'sim_x_size', sim_x_size, 'cov_order', cov_order, ...
+        'cov_est_type', cov_est_type);
 
 end
 

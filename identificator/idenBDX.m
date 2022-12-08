@@ -19,7 +19,7 @@ end
 function [mat_b_sim, mat_d_sim, mat_x_sim] = decomposeSolver(y_isim, u_isim, mat_s, mat_a_sim, mat_c_sim, x_size_sim, sim_ss_d_type)
 
     % 通过对角化分解原方程, 并提取非负特征值
-    [v_eig_mat, v_eig_vec] = eig(mat_s, 'vector');
+    [v_eig_mat, v_eig_vec] = eig_quick(mat_s);
 
     % 参数计算
     y_size = size(y_isim, 1);
@@ -73,7 +73,7 @@ end
 function [mat_b_sim, mat_d_sim, mat_x_sim] = optimalSolver(y_isim, u_isim, mat_s, mat_a_sim, mat_c_sim, x_size_sim, sim_ss_d_type)
     
     % 通过对角化分解原方程, 并提取非负特征值
-    [v_eig_mat, v_eig_vec] = eig(mat_s, 'vector');
+    [v_eig_mat, v_eig_vec] = eig_quick(mat_s);
     v_eig_vec_angle = angle(v_eig_vec);
     v_eig_vec_nneg = v_eig_vec(v_eig_vec_angle >= 0);
 
@@ -95,7 +95,8 @@ function [mat_b_sim, mat_d_sim, mat_x_sim] = optimalSolver(y_isim, u_isim, mat_s
     decompose_character_mat_a_nneg = decompose_character_mat_a(v_eig_vec_angle >= 0);
     
     % 用优化方法计算结果
-    seed = uint32(randi(intmax('uint32'), 1)); rs = RandStream('dsfmt19937', 'Seed', seed);
+    seed = rng().Seed;
+    rs = RandStream('dsfmt19937', 'Seed', seed);
     if sim_ss_d_type == 0, xinit = rand(rs, x_size_sim, u_size);  % 假定 D = 0
     else, xinit = rand(rs, x_size_sim+y_size, u_size); end  % 不做假定
     op_option = optimoptions('lsqnonlin', 'Algorithm', 'trust-region-reflective', ...
@@ -163,3 +164,28 @@ function [mat_b_sim, mat_d_sim, mat_x_sim] = optimalSolver(y_isim, u_isim, mat_s
 
 end
 
+function [eig_mat, eig_vec] = eig_quick(mat_s)
+% 快速生成特征值和特征向量
+
+    % 准备参数
+    if mat_s(1, 1) == 1, freq_mat_s = mat_s(2:end, 2:end);
+    else, freq_mat_s = mat_s; end
+    freq_size = size(freq_mat_s, 1)/2;
+    
+    % 生成谐波特征值和特征向量
+    eig_mat = zeros(freq_size*2, freq_size*2);
+    eig_vec = zeros(freq_size*2, 1);
+    for iter_freq = 1:freq_size
+        temp_angle = atan2(freq_mat_s(iter_freq*2-1, iter_freq*2), freq_mat_s(iter_freq*2, iter_freq*2));
+        eig_vec(iter_freq*2-1) = exp(-1i*temp_angle);
+        eig_vec(iter_freq*2) = exp(1i*temp_angle);
+        eig_mat(iter_freq*2-1:iter_freq*2, iter_freq*2-1:iter_freq*2) = [1i -1i; 1 1];
+    end
+
+    % 加直流分量
+    if mat_s(1, 1) == 1
+        eig_vec = [1; eig_vec];
+        eig_mat = blkdiag(1, eig_mat);
+    end
+
+end

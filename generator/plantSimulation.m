@@ -24,23 +24,33 @@ function ret_struct = plantSimulation(varargin)
     % 参数构造
     switch type
         case 'fixed'
-            plant_info = load('parameter\paraPlant.mat', 'para');
-            plant_info = plant_info.para;
+            A = [0.8 0.4; -0.4 0.2];
+            B = [1; 1];
+            C = [1 0; 1 1];
+            D = [0; 0];
+            seed = rng().Seed;
+            covariance = blkdiag([1 1; 0 1], [1 0; 1 1], 1);
+            plant_info = struct('A', A, 'B', B, 'C', C, 'D', D, ...
+                'seed', seed, 'cov', covariance);
         case 'generated'
             % 生成随机种子
-            seed = uint32(randi(intmax('uint32'), 1));
-            cov_seed = RandStream('dsfmt19937', 'Seed', seed);
+            seed = rng().Seed;
+            rs = RandStream('dsfmt19937', 'Seed', seed);
             % 随机生成系统参数
-            is_stable = false;
-            while ~is_stable
+            is_feasible = false;
+            while ~is_feasible
                 rand_sys = drss(x_size, y_size, u_size);
-                is_stable = max(abs(eig(rand_sys.A, 'vector'))) <= 0.95;  % 经验值
+                is_feasible = max(abs(eig(rand_sys.A, 'vector'))) <= 0.95;  % 经验值
+                if y_size >= x_size  % 用于方差估计
+                    is_cfullrank = rank(rand_sys.C) >= x_size;
+                    is_feasible = is_feasible && is_cfullrank;
+                end
             end
             % 随机生成协方差矩阵
             scale_cov = 5;
-            covariance_x = scale_cov*semidefMatrixBuilder(cov_seed, x_size);
-            covariance_y = scale_cov*semidefMatrixBuilder(cov_seed, y_size);
-            covariance_u = scale_cov*semidefMatrixBuilder(cov_seed, u_size);
+            covariance_x = scale_cov*semidefMatrixBuilder(rs, x_size);
+            covariance_y = scale_cov*semidefMatrixBuilder(rs, y_size);
+            covariance_u = scale_cov*semidefMatrixBuilder(rs, u_size);
             covariance = blkdiag(covariance_x, covariance_y, covariance_u);
             % 构造struct
             plant_info = struct('A', rand_sys.A, 'B', rand_sys.B, 'C', rand_sys.C, 'D', rand_sys.D, ...
@@ -68,16 +78,15 @@ function ret_struct = plantSimulation(varargin)
     [xn, yn, un] = plantModel(plant_info, x_init, excitation, noise);
     
     % 返回值
-    if size(covariance, 1) < xyu_size, covariance = zeros(xyu_size); end
     plant_info.cov = covariance;
     ret_struct = struct('plant_info', plant_info, 'xn', xn, 'yn', yn, 'un', un, 'noise', noise, 'period_samples', period_sample);
 
 end
 
 
-function ret_mat = semidefMatrixBuilder(seed, n)
+function ret_mat = semidefMatrixBuilder(rand_rs, n)
 % 正定矩阵生成(0~1)
-    ret_mat = rand(seed, n, n);
+    ret_mat = rand(rand_rs, n, n);
     ret_mat = 0.5.*(ret_mat+ret_mat.');
     ret_mat = ret_mat + n.*eye(n);
 end

@@ -20,7 +20,7 @@ function out = genRandom(generator_info, period_sample, signal_size, ~)
     % 准备输出
     out = zeros(signal_size, period_sample);
     % 准备种子
-    seed = uint32(randi(intmax('uint32'), 1));
+    seed = rng().Seed;
     noise_seed = RandStream.create('mrg32k3a', 'NumStreams', signal_size, 'Seed', seed, 'CellOutput', true);
     
     % 生成信号 (一个周期), 注意采样时间

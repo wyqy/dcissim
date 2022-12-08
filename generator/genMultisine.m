@@ -106,7 +106,7 @@ function amplitudes = amplitudesBuilder(signal_size, signal_interval, frequencie
     signal_interval = sort(signal_interval, 2, 'ascend');
 
     % 准备随机数种子
-    seed = uint32(randi(intmax('uint32'), 1));
+    seed = rng().Seed;
     rand_stream = RandStream.create('mrg32k3a', 'NumStreams', signal_size, 'Seed', seed, 'CellOutput', true);
     
     % 确定常数幅值 (如果有)

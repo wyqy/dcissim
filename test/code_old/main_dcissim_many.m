@@ -4,7 +4,7 @@
 para_xsize = 4; para_ysize = 1; para_usize = 1;
 
 % 是否全量辨识
-para_isfull = false; %#ok<*UNRCH>
+para_isfull = true; %#ok<*UNRCH>
 if para_isfull
     para_iden_isim_excitation_type = 'full';
     % 时间参数
@@ -32,7 +32,7 @@ para_iden_sim_ss_d_type = 'null';  % 是否假定D矩阵为0
 para_iden_cov_cross_type = 'null';  % 是否假定存在互协方差
 
 % 随机模型个数
-para_experiment_count = 100;
+para_experiment_count = 1;
 result_original_cell = cell(para_experiment_count, 1);
 result_identified_cell = cell(para_experiment_count, 1);
 
@@ -105,9 +105,9 @@ for iter_exp = 1:para_experiment_count
     % 方差
     if para_isfull
         temp_cov = result_original_cell{iter_exp}.cov(1:para_xsize+para_ysize, 1:para_xsize+para_ysize);
-        [~, analysis_cov_norm(1, :, iter_exp)] = anaCov(temp_cov, result_original_cell{iter_exp}, analysis_cov_count);
+        [~, ~, ~, analysis_cov_norm(1, :, iter_exp)] = anaCov(temp_cov, result_original_cell{iter_exp}, analysis_cov_count);
         temp_cov = result_identified_cell{iter_exp}.cov(1:result_identified_cell{iter_exp}.x_size+para_ysize, 1:result_identified_cell{iter_exp}.x_size+para_ysize);
-        [~, analysis_cov_norm(2, :, iter_exp)] = anaCov(temp_cov, result_identified_cell{iter_exp}, analysis_cov_count);
+        [~, ~, ~, analysis_cov_norm(2, :, iter_exp)] = anaCov(temp_cov, result_identified_cell{iter_exp}, analysis_cov_count);
     end
 end
 if para_isfull, disp(['H2 norm differences of covariances: ', mat2str(mean(power(diff(analysis_cov_norm), 2), 'all'), 2)]); end

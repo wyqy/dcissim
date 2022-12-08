@@ -1,4 +1,4 @@
-function [moments, hnorms] = anaCov(covariance, ss_struct, out_size)
+function [stable_rr, stable_zr1, moments, hnorms] = anaCov(covariance, ss_struct, out_size)
 %ANACOV 根据协方差和(渐近稳定)系统矩阵计算稳态输出矩(输入的矩仅包含状态和输出)
 % 同时返回计算结果和Hnorm-2对比
     
@@ -17,10 +17,11 @@ function [moments, hnorms] = anaCov(covariance, ss_struct, out_size)
 
     % 计算
     stable_zz = dlyap(mat_a, cov_zz);
+    stable_rr = mat_c*stable_zz*(mat_c.') + cov_rr;
     stable_zr1 = mat_a*stable_zz*(mat_c.') + cov_zr;
     % 零阶矩
-    moments{1} = mat_c*stable_zz*(mat_c.') + cov_rr;
-    [hnorms(1), ~] = anaNorm(moments{1});
+    moments{1} = stable_rr;
+    [hnorms(1), ~] = anaNorm(stable_rr);
     % 非零阶矩
     for iter = 1:out_size-1
         moments{iter+1} = mat_c*mpower(mat_a, iter-1)*stable_zr1;

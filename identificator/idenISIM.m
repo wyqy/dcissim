@@ -8,11 +8,15 @@ function [y_isim, u_isim] = idenISIM(yn, un, vn, isim_lsq_type)
     switch isim_lsq_type
         case 'ordinary' % 离线: 直接做QR分解和COD分解的OLS
             % 参数计算
-            y_size = size(yn, 1);
+            y_size = size(yn, 1); u_size = size(un, 1); v_size = size(vn, 1);
+            signal_sample = size(yn, 2);
             yn = yn.'; un = un.'; vn = vn.';
             yun = [yn un];
             % 最小二乘
-            yu_isim = lsqminnorm(vn, yun);
+            % yu_isim = lsqminnorm(vn, yun);
+            [yu_isim, flag] = lsqr(kron(eye(y_size+u_size), vn), reshape(yun, [(y_size+u_size)*signal_sample 1]), 1e-8);
+            if flag ~= 0, yu_isim = zeros(v_size, (y_size+u_size));
+            else, yu_isim = reshape(yu_isim, [v_size (y_size+u_size)]); end
             % 返回值
             yu_isim = yu_isim.';
             y_isim = yu_isim(1:y_size, :);
@@ -22,13 +26,12 @@ function [y_isim, u_isim] = idenISIM(yn, un, vn, isim_lsq_type)
             % 首次使用, 初始化
             if isempty(is_inited)
                 % 参数计算
-                y_size = size(yn, 1);
-                u_size = size(un, 1);
-                v_size = size(vn, 1);
+                y_size = size(yn, 1); u_size = size(un, 1); v_size = size(vn, 1);
                 % 矩阵生成
-                rng(uint32(randi(intmax('uint32'), 1)), 'simdTwister');
+                seed = rng().Seed;
+                rs = RandStream('dsfmt19937', 'Seed', seed);
                 mat_lambda = eye(y_size+u_size);
-                mat_p = 10e5 * eye((y_size+u_size)*v_size) + randi(10e4);
+                mat_p = 10e5 * eye((y_size+u_size)*v_size) + randi(rs, 10e4);
                 vec_r = zeros((y_size+u_size)*v_size, 1);
                 % 设置标记
                 is_inited = 1;

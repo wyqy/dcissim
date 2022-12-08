@@ -1,4 +1,4 @@
-function [transferred_noise, scale_covariance_rational] = genNoiser(plant_info, samples, xyu_snr, xyun)
+function [transferred_noise, scale_covariance_rational] = genNoiser(plant_info, signal_sample, xyu_snr, xyun)
 %GENNOISER 根据返回满足指定信噪比和协方差矩阵的扰动信号
 
     % 参数提取
@@ -10,18 +10,19 @@ function [transferred_noise, scale_covariance_rational] = genNoiser(plant_info, 
 
     % 计算初始正态分布
     rs = RandStream.create('mrg32k3a', 'NumStreams', xyu_size, 'Seed', seed, 'CellOutput', true);
-    noise = zeros(xyu_size, samples);
-    for iter = 1:xyu_size, noise(iter, :) = randn(rs{iter}, 1, samples); end
+    noise = zeros(xyu_size, signal_sample);
+    for iter = 1:xyu_size, noise(iter, :) = randn(rs{iter}, 1, signal_sample); end
 
     % 计算放缩后的协方差矩阵
     signal_power = signalPowermeter(xyun);
     scale_covariance = noiseAutocovarianceCalculator(covariance, xyu_snr, signal_power);
 
     % 计算不含NaN的snr的正态分布
-    scale_covariance_selection = ~isnan(diag(scale_covariance));
-    scale_covariance_rational = scale_covariance(scale_covariance_selection, scale_covariance_selection);
+    nonan_selection = ~isnan(diag(scale_covariance));
+    scale_covariance_rational = zeros(xyu_size, xyu_size);
+    scale_covariance_rational(nonan_selection, nonan_selection) = scale_covariance(nonan_selection, nonan_selection);
     scale_transfer = zeros(xyu_size, xyu_size);
-    scale_transfer(scale_covariance_selection, scale_covariance_selection) = sqrtm(scale_covariance_rational);
+    scale_transfer(nonan_selection, nonan_selection) = sqrtm(scale_covariance_rational(nonan_selection, nonan_selection));
     transferred_noise = scale_transfer*noise;
 
 end

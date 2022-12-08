@@ -18,6 +18,7 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yn, un)
     sim_ss_bdx_type = iden_struct.sim_ss_bdx_type;
     sim_ss_d_type = iden_struct.sim_ss_d_type;
     cov_cross_type = iden_struct.cov_cross_type;
+    cov_est_type = iden_struct.cov_est_type;
     % 初始化器增加的参数
     frequencies = iden_struct.frequencies;
     mat_s = iden_struct.mat_s;
@@ -32,6 +33,7 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yn, un)
     cov_order = iden_struct.cov_order;
     % 其它参数
     v0 = regressor.v0;
+    % 方差估计参数
 
     % 初始化参数
     if isempty(is_inited)
@@ -69,7 +71,7 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yn, un)
             [mat_b_sim, mat_d_sim, mat_x_sim] = idenBDX(y_isim, u_isim, mat_s, mat_a_sim, mat_c_sim, x_size_sim, sim_ss_bdx_type, sim_ss_d_type);
             % 方差辨识
             mat_b_sim = real(mat_b_sim); mat_d_sim = real(mat_d_sim);
-            covariance_struct = idenCovariance(yn, un, vn, u_isim, mat_a_sim, mat_b_sim, mat_c_sim, mat_d_sim, cov_cross_type, cov_order, cov_order_type);  % (可能)询问阶数
+            covariance_struct = idenCovariance(yn, un, vn, u_isim, mat_a_sim, mat_b_sim, mat_c_sim, mat_d_sim, cov_est_type, cov_cross_type, cov_order, cov_order_type, cutted_periods*period_samples);  % (可能)询问阶数
         case 'online'  % 在线辨识
             % 记录迭代步
             n = n + 1;
@@ -94,6 +96,8 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yn, un)
     % 整合方差矩阵
     cov = covariance_struct.cov;
     kalman_gain = covariance_struct.kalman;
+    % 减小存储空间
+    mat_s = sparse(mat_s);
     % 返回值
     ret_struct = struct('x_size', x_size_sim, 'S', mat_s, 'X', mat_x_sim, 'Y', y_isim, 'U', u_isim, 'v0', v0, 'freqs', frequencies, ...
         'A', mat_a_sim, 'B', mat_b_sim, 'C', mat_c_sim, 'D', mat_d_sim, ...
