@@ -176,6 +176,9 @@ function cov_zr = zrRealMomentEstimation(est_rr_moment, mat_a_sim, mat_c_sim)
         location_base = location_base + y_size;
     end
     est_para_b = reshape(est_para_b, [(order-1)*y_size*y_size 1]);
+    % LS估计
+    % est_para_p = lsqminnorm(est_para_m, est_para_b);
+    % est_mat_p = reshape(est_para_p, [x_size x_size]);
     % SDP估计
     cvx_begin sdp quiet;
         variable est_mat_p(x_size, x_size) symmetric;
@@ -243,7 +246,7 @@ function cov_zr = zrRealMomentEstimation2(rn, order, mat_a_sim, mat_c_sim, cutte
     end
     % E, G计算
     est_para_e = kron(mat_c_sim, est_para_l) / (eye(x_size^2) - kron(mat_f_sim, mat_f_sim));
-    est_para_g = est_para_e*kron(-mat_l_sim, mat_l_sim) + kron(eye(y_size), est_para_n);
+    est_para_g = est_para_e*kron(mat_l_sim, mat_l_sim) + kron(eye(y_size), est_para_n);
     % A, b计算
     est_para_b = zeros(order*y_size, y_size);
     location_base = 0;

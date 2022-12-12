@@ -24,12 +24,12 @@ function ret_struct = plantSimulation(varargin)
     % 参数构造
     switch type
         case 'fixed'
-            A = [0.8 0.4; -0.4 0.2];
+            A = [0.8 0; 0 0.2];
             B = [1; 1];
             C = [1 0; 1 1];
             D = [0; 0];
             seed = rng().Seed;
-            covariance = blkdiag([1 1; 0 1], [1 0; 1 1], 1);
+            covariance = blkdiag([1 0; 0 1], [1 0; 0 1], 1);
             plant_info = struct('A', A, 'B', B, 'C', C, 'D', D, ...
                 'seed', seed, 'cov', covariance);
         case 'generated'
@@ -63,22 +63,21 @@ function ret_struct = plantSimulation(varargin)
     signal_sample = size(excitation, 2);
 
     % 试生成仿真数据
-    repeat_count = 3;  % 自定义参数
     x_init_powertest = zeros(x_size, 1);
-    un_powertest = excitation(:, 1:repeat_count*period_sample);
-    noise_powertest = zeros(xyu_size, repeat_count*period_sample);
+    un_powertest = excitation(:, period_sample+1:2*period_sample);
+    noise_powertest = zeros(xyu_size, period_sample);
     [xn_test, yn_test, un_test] = plantModel(plant_info, x_init_powertest, un_powertest, noise_powertest);
     % 生成噪声信号
     xyun_test = [xn_test; yn_test; un_test];
     xyun_test = xyun_test(:, end-period_sample+1:end);
     [noise, covariance] = genNoiser(plant_info, signal_sample, xyu_snr, xyun_test);
+    % 更新方差数据
+    plant_info.cov = covariance;
 
     % 生成仿真数据
     x_init = zeros(x_size, 1);  % 零初始化
     [xn, yn, un] = plantModel(plant_info, x_init, excitation, noise);
-    
     % 返回值
-    plant_info.cov = covariance;
     ret_struct = struct('plant_info', plant_info, 'xn', xn, 'yn', yn, 'un', un, 'noise', noise, 'period_samples', period_sample);
 
 end

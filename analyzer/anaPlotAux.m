@@ -8,6 +8,7 @@ function anaPlotAux(obj, font_size, line_width)
         obj.TickDir = 'in';
         obj.XMinorTick = 'on';
         obj.YMinorTick = 'on';
+        obj.XLimitMethod = 'tight';
         obj.XGrid = 'on';
         obj.YGrid = 'on';
         obj.GridLineStyle = '--';

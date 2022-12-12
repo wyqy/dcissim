@@ -11,6 +11,9 @@ function [mat_a_sim, mat_c_sim, x_size_sim] = idenACN(y_isim, u_isim, mat_s, x_s
     
     % 判断是否使用正交化, 从而使用不同的方法
     % 生成U1, Y1的数据矩阵
+    % 强行使用经典方法
+    % mat_u_observe = normalBuilder(u_isim, mat_s, x_size_upbound);
+    % mat_y_observe = normalBuilder(y_isim, mat_s, x_size_upbound);
     if x_size_upbound <= para_orthogal_bound  % 若x_size_upbound不够大
         % 使用经典方法
         mat_u_observe = normalBuilder(u_isim, mat_s, x_size_upbound);
@@ -54,6 +57,9 @@ function [mat_a_sim, mat_c_sim, x_size_sim] = idenACN(y_isim, u_isim, mat_s, x_s
     mat_o_observe = mat_r22_svd_mat_w(:, 1:x_size_sim) * sqrt(diag(mat_r22_svd_mat_s(1:x_size_sim)));
     
     % 计算A, C矩阵
+    % 强行使用经典方法
+    % mat_a_sim = pinv(mat_o_observe(1:(x_size_upbound-1)*y_size, :)) * mat_o_observe(y_size+1:end, :);
+    % mat_c_sim = mat_o_observe(1:y_size, :);
     if x_size_upbound <= para_orthogal_bound  % 若InXSize不够大
         % 使用经典方法
         mat_a_sim = pinv(mat_o_observe(1:(x_size_upbound-1)*y_size, :)) * mat_o_observe(y_size+1:end, :);

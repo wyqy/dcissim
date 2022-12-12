@@ -75,6 +75,12 @@ for iter_exp = 1:para_experiment_count
 
 end
 
+%% 变换辨识结果
+for iter_exp = 1:para_experiment_count
+    result_simple_cell{iter_exp} = anaSimilarTrans(result_original, result_simple_cell{iter_exp});
+    result_classic_cell{iter_exp} = anaSimilarTrans(result_original, result_classic_cell{iter_exp});
+end
+
 %% 验证确定性参数辨识结果
 % 准备参数, 第一行为原系统, 第二行为辨识系统
 analysis_xsize = zeros(3, para_experiment_count);
@@ -115,7 +121,6 @@ analysis_outcov_error_norm = zeros(2, 2, para_experiment_count);
 analysis_inoutcov_error = zeros(2, para_xsize*para_xsize+para_ysize*para_ysize+para_usize*para_usize, para_experiment_count);
 analysis_outcov_series = zeros(3, analysis_cov_count, para_experiment_count);
 
-
 % 计算方差
 for iter_exp = 1:para_experiment_count  %(默认para_ysize >= para_xsize)
     % 输入数据计算
@@ -140,8 +145,8 @@ for iter_exp = 1:para_experiment_count  %(默认para_ysize >= para_xsize)
     
     [temp_simple_cov_ww, ~] = sys_compare(temp_ori_cov_ww, temp_simple_cov_ww); [temp_simple_cov_vv, ~] = sys_compare(temp_ori_cov_vv, temp_simple_cov_vv);
     [temp_classic_cov_ww, ~] = sys_compare(temp_ori_cov_ww, temp_classic_cov_ww); [temp_classic_cov_vv, ~] = sys_compare(temp_ori_cov_vv, temp_classic_cov_vv);
-    analysis_outcov_error_norm(1, 1, iter_exp) = temp_simple_cov_ww ; analysis_outcov_error_norm(1, 2, iter_exp) = temp_simple_cov_ww ;
-    analysis_outcov_error_norm(2, 1, iter_exp) = temp_classic_cov_ww; analysis_outcov_error_norm(2, 2, iter_exp) = temp_classic_cov_ww;
+    analysis_outcov_error_norm(1, 1, iter_exp) = temp_simple_cov_ww ; analysis_outcov_error_norm(1, 2, iter_exp) = temp_simple_cov_vv ;
+    analysis_outcov_error_norm(2, 1, iter_exp) = temp_classic_cov_ww; analysis_outcov_error_norm(2, 2, iter_exp) = temp_classic_cov_vv;
     
 end
 
@@ -166,8 +171,8 @@ analysis_cov_location = 1;
 % ax = anaPlotCov(analysis_outcov_series(:, :, analysis_cov_location)); % title(ax, 'Coavariance plot for minimum d\_{Hinf}');
 
 %% 输出方差分布图
-% analysis_spot_inout_3d = cat(2, analysis_outcov_error_norm(1, :, :), analysis_incov_error_norm(1, :, :));
-% analysis_spot_out_2d = analysis_outcov_error_norm;
+analysis_spot_inout_3d = cat(2, analysis_outcov_error_norm(1, :, :), analysis_incov_error_norm(1, :, :));
+analysis_spot_out_2d = analysis_outcov_error_norm;
 % ax = auxPlotSpace(analysis_spot_inout_3d);
 % ax = auxPlotSpace(analysis_spot_out_2d);
 % ax = auxPlotSpace(analysis_inoutcov_error);

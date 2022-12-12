@@ -3,6 +3,7 @@ function ax = anaPlotCov(cov_norm)
 
     % 参数计算
     cov_size = size(cov_norm, 1);
+    cov_xdim = 0:size(cov_norm, 2)-1;
 
     % 参数定义
     legend_text = {'Original', 'discrete-cISSIM (full)', 'discrete-cISSIM (reduce)', 'SIM'};
@@ -12,13 +13,13 @@ function ax = anaPlotCov(cov_norm)
 
     % 图窗
     fig = figure;
-    fig.Units = 'centimeters'; fig.Position = [0 0 14 10];
+    fig.Units = 'centimeters'; fig.Position = [0 0 14 8];
     % 绘图
     ax = axes(fig);
     for iter_cov = 1:cov_size
-        plot(ax, cov_norm(iter_cov, :), line_shape{iter_cov}, 'Color', line_color{iter_cov}); hold on;
+        plot(ax, cov_xdim, cov_norm(iter_cov, :), line_shape{iter_cov}, 'Color', line_color{iter_cov}); hold on;
     end
-    axis(ax, [1 size(cov_norm, 2) -inf inf]);
+    % axis(ax, [1 size(cov_norm, 2) -inf inf]);
 
     % 寻找axes
     child_axes = findobj(fig.Children, 'type', 'Axes');

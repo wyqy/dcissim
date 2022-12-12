@@ -20,12 +20,12 @@ result_reduce_dcissim_cell = result_dcissim_cell;
 result_reduce_dcissim_cell = sparsedMat(result_reduce_dcissim_cell);
 result_full_dcissim_cell = sparsedMat(result_full_dcissim_cell);
 
-save('results\mat_auto_siso.mat', '-v7.3', ...
+save('results\mat_auto_siso_processed.mat', '-v7.3', ...
     'analysis_error_h2_all', 'analysis_error_hinf_all', 'result_original_cell', 'result_full_dcissim_cell', 'result_reduce_dcissim_cell', 'result_sim_cell', ...
     'analysis_outcov_error_norm_all', 'analysis_outcov_series_all', 'para_sim_step');
 
 %% SISO load 
-load('results\mat_auto_siso.mat');
+load('results\mat_auto_siso_processed.mat');
 
 %% SISO Bode plot
 analysis_bode_location = 48;
