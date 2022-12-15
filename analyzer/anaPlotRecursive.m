@@ -1,13 +1,13 @@
-function fig = anaPlotCov(cov_norm)
-%ANASEMILOGX 绘制方差范数对比图 - 使用半对数坐标系
+function fig = anaPlotRecursive(cov_norm, norm_period)
+%ANAPLOTRECURSIVE 绘制迭代的范数变换图, 没有标记点
 
     % 参数计算
     data_size = size(cov_norm, 1);
-    cov_xdim = 0:size(cov_norm, 2)-1;
+    cov_xdim = (1:size(cov_norm, 2))./norm_period;
 
     % 参数定义
     legend_text = {'Original', 'discrete-cISSIM (full)', 'discrete-cISSIM (reduce)', 'SIM'};
-    line_shape = {'-.o', '-x', '-x', '-^'};
+    line_shape = {'-.', '-', '-', '-'};
     line_color = {'#0072BD', '#D95319', '#77AC30', '#EDB120'};
     font_size = 10; line_width = 1.5;
 
@@ -19,7 +19,7 @@ function fig = anaPlotCov(cov_norm)
     for iter_data = 1:data_size
         plot(ax, cov_xdim, cov_norm(iter_data, :), line_shape{iter_data}, 'Color', line_color{iter_data}); hold on;
     end
-    % axis(ax, [1 size(cov_norm, 2) -inf inf]);
+    xlabel(ax, '')
 
     % 寻找axes
     child_axes = findobj(fig.Children, 'type', 'Axes');
@@ -34,13 +34,9 @@ function fig = anaPlotCov(cov_norm)
     end
 
     % 显示标签
-    anaPlotLabel('Lag of \color[rgb]{1,1,1} o \color[rgb]{.3,.3,.3} {\Xi}_{rr}^{i}', 'H_{2} Norm', font_size);
+    anaPlotLabel('Period', 'H_{2} Norm', font_size);
     % 显示图例
     anaPlotLegend(legend_text(1:data_size), font_size, line_width, 'north');
-
-    % 保存图片
-    % filepath = 'fig';
-    % saveas(gcf, [filepath 'steering_lateral_bode_plot.eps'], 'epsc')
 
 end
 

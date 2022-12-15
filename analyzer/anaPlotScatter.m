@@ -1,5 +1,5 @@
-function ax = auxPlotSpace(source_data)
-%AUXPLOTSPACE 绘制2d / 3d 误差分布图
+function fig = anaPlotScatter(source_data)
+%ANAPLOTSCATTER 绘制2d / 3d 误差分布图
 % 数据维度(data_dim, 2/3, sample_number)
 
     % 参数计算
@@ -7,7 +7,7 @@ function ax = auxPlotSpace(source_data)
     dim_size = size(source_data, 2);
 
     % 参数定义
-    legend_text = {'discrete-cISSIM (full)', 'discrete-cISSIM (reduce)'};
+    legend_text = {'ALS (simplified)', 'ALS (classical)'};
     spot_mark = {'x', 'x', 'x'};
     spot_size = [36 36 36];
     spot_color = {[0.8500 0.3250 0.0980], [0.4660 0.6740 0.1880], [0.9290 0.6940 0.1250]};
@@ -21,18 +21,18 @@ function ax = auxPlotSpace(source_data)
     if dim_size == 2
         for iter_data = 1:data_size
             scatter(ax, shiftdim(source_data(iter_data, 1, :)), shiftdim(source_data(iter_data, 2, :)), ...
-                spot_size(iter_data), spot_color{iter_data}, spot_mark{iter_data}); hold on;
+                spot_size(iter_data), spot_color{iter_data}, spot_mark{iter_data}, 'LineWidth', line_width); hold on;
         end
-        xlabel(ax, 'error of w');
-        ylabel(ax, 'error of v');
+        xlabel(ax, 'error of w', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
+        ylabel(ax, 'error of v', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
     elseif dim_size == 3
         for iter_data = 1:data_size
             scatter3(ax, shiftdim(source_data(iter_data, 1, :)), shiftdim(source_data(iter_data, 2, :)), shiftdim(source_data(iter_data, 3, :)), ...
-                spot_size(iter_data), spot_color{iter_data}, spot_mark{iter_data}); hold on;
+                spot_size(iter_data), spot_color{iter_data}, spot_mark{iter_data}, 'LineWidth', line_width); hold on;
         end
-        xlabel(ax, 'error of \omega', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
-        ylabel(ax, 'error of \nu', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
-        zlabel(ax, 'error of \tau', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
+        xlabel(ax, 'error of \color[rgb]{1,1,1} \ldots \color[rgb]{.3,.3,.3} \omega', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
+        ylabel(ax, 'error of \color[rgb]{1,1,1} \ldots \color[rgb]{.3,.3,.3} \nu', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
+        zlabel(ax, 'error of \color[rgb]{1,1,1} \ldots \color[rgb]{.3,.3,.3} \tau', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
     end
 
     % 寻找axes

@@ -96,7 +96,7 @@ for iter_exp = 1:para_experiment_count
     % 准备
     temp_struct = result_original_cell{iter_exp}; analysis_original_ss = ss(temp_struct.A, temp_struct.B, temp_struct.C, temp_struct.D, para_sim_step);
     temp_struct = result_full_cell{iter_exp}; analysis_full_idss = idss(temp_struct.A, temp_struct.B, temp_struct.C, temp_struct.D, temp_struct.K, zeros(temp_struct.x_size, 1), para_sim_step, 'NoiseVariance', temp_struct.cov(temp_struct.x_size+1:temp_struct.x_size+para_ysize, temp_struct.x_size+1:temp_struct.x_size+para_ysize));
-    temp_struct = result_full_cell{iter_exp}; analysis_reduce_idss = idss(temp_struct.A, temp_struct.B, temp_struct.C, temp_struct.D, temp_struct.K, zeros(temp_struct.x_size, 1), para_sim_step, 'NoiseVariance', temp_struct.cov(temp_struct.x_size+1:temp_struct.x_size+para_ysize, temp_struct.x_size+1:temp_struct.x_size+para_ysize));
+    temp_struct = result_reduce_cell{iter_exp}; analysis_reduce_idss = idss(temp_struct.A, temp_struct.B, temp_struct.C, temp_struct.D, temp_struct.K, zeros(temp_struct.x_size, 1), para_sim_step, 'NoiseVariance', temp_struct.cov(temp_struct.x_size+1:temp_struct.x_size+para_ysize, temp_struct.x_size+1:temp_struct.x_size+para_ysize));
     analysis_sim_idss = result_sim_cell{iter_exp};
     % xsize
     analysis_xsize(1, iter_exp) = para_xsize;
@@ -136,12 +136,12 @@ for iter_exp = 1:para_experiment_count
     % 可视化 + 数据计算
     temp_ori_cov = result_original_cell{iter_exp}.cov(1:para_xsize+para_ysize, 1:para_xsize+para_ysize);
     temp_full_cov = result_full_cell{iter_exp}.cov(1:analysis_xsize(2, iter_exp)+para_ysize, 1:analysis_xsize(2, iter_exp)+para_ysize);
-    temp_reduce_cov = result_full_cell{iter_exp}.cov(1:analysis_xsize(3, iter_exp)+para_ysize, 1:analysis_xsize(3, iter_exp)+para_ysize);
+    temp_reduce_cov = result_reduce_cell{iter_exp}.cov(1:analysis_xsize(3, iter_exp)+para_ysize, 1:analysis_xsize(3, iter_exp)+para_ysize);
     temp_sim_cov = anaInnoCov(result_sim_cell{iter_exp}.K, result_sim_cell{iter_exp}.NoiseVariance);
-    [temp_ori_cov_rr, temp_ori_cov_zr, temp_ori_moments, analysis_outcov_series(1, :, iter_exp)] = anaCov(temp_ori_cov, result_original_cell{iter_exp}, analysis_cov_count);
-    [temp_full_cov_rr, temp_full_cov_zr, temp_full_moments, analysis_outcov_series(2, :, iter_exp)] = anaCov(temp_full_cov, result_full_cell{iter_exp}, analysis_cov_count);
-    [temp_reduce_cov_rr, temp_reduce_cov_zr, temp_reduce_moments, analysis_outcov_series(3, :, iter_exp)] = anaCov(temp_reduce_cov, result_reduce_cell{iter_exp}, analysis_cov_count);
-    [temp_sim_cov_rr, temp_sim_cov_zr, temp_sim_moments, analysis_outcov_series(4, :, iter_exp)] = anaCov(temp_sim_cov, result_sim_cell{iter_exp}, analysis_cov_count);
+    [~, ~, temp_ori_moments, analysis_outcov_series(1, :, iter_exp)] = anaCov(temp_ori_cov, result_original_cell{iter_exp}, analysis_cov_count);
+    [~, ~, temp_full_moments, analysis_outcov_series(2, :, iter_exp)] = anaCov(temp_full_cov, result_full_cell{iter_exp}, analysis_cov_count);
+    [~, ~, temp_reduce_moments, analysis_outcov_series(3, :, iter_exp)] = anaCov(temp_reduce_cov, result_reduce_cell{iter_exp}, analysis_cov_count);
+    [~, ~, temp_sim_moments, analysis_outcov_series(4, :, iter_exp)] = anaCov(temp_sim_cov, result_sim_cell{iter_exp}, analysis_cov_count);
     % 用于数据计算
     [temp_outerror_1, ~] = sys_compare(temp_ori_moments{1}, temp_full_moments{1}); [temp_outerror_2, ~] = sys_compare(temp_ori_moments{2}, temp_full_moments{2}); analysis_outcov_error_norm(1, iter_exp) = temp_outerror_1 + temp_outerror_2;
     [temp_outerror_1, ~] = sys_compare(temp_ori_moments{1}, temp_reduce_moments{1}); [temp_outerror_2, ~] = sys_compare(temp_ori_moments{2}, temp_reduce_moments{2}); analysis_outcov_error_norm(2, iter_exp) = temp_outerror_1 + temp_outerror_2;
@@ -155,16 +155,16 @@ disp(['Differences of input covariances as norm: ', mat2str(analysis_criterion_i
 disp(['Differences of output covariances as norm: ', mat2str(analysis_criterion_outcov(1), 2), ' / ', mat2str(analysis_criterion_outcov(2), 2), ' / ', mat2str(analysis_criterion_outcov(3), 2)]);
 
 %% H2差异最大, 中位数和最小的Bode图
-[~, analysis_hinf_sort] = sort(analysis_error_h2(1, :), 'descend');
+% [~, analysis_hinf_sort] = sort(analysis_error_h2(1, :), 'descend');
 % analysis_bode_location = analysis_hinf_sort(1);
 % analysis_bode_location = analysis_hinf_sort(ceil(para_experiment_count/2));
-analysis_bode_location = analysis_hinf_sort(end);
+analysis_bode_location = 93;
 analysis_bode_cell = {result_original_cell{analysis_bode_location}, result_full_cell{analysis_bode_location}, result_reduce_cell{analysis_bode_location}, result_sim_cell{analysis_bode_location}};
 % fig = anaPlotBode(analysis_bode_cell, 'sample', para_sim_step); sgtitle(fig, 'Bode plot for minimum d\_{Hinf}');
 
 %% 输出方差差异最小的矩估计图
-[~, analysis_cov_sort] = sort(analysis_criterion_outcov(1, :), 'descend');
-analysis_cov_location = analysis_cov_sort(end);
+% [~, analysis_cov_sort] = sort(analysis_criterion_outcov(1, :), 'descend');
+analysis_cov_location = 93;
 % ax = anaPlotCov(analysis_outcov_series(:, :, analysis_cov_location)); title(ax, 'Coavariance plot for minimum d\_{Hinf}');
 
 %% 输出时间
@@ -180,21 +180,22 @@ end
 %% 辅助命令
 % mean(analysis_error_h2, 2)
 % std(analysis_error_h2, 0, 2)
-% 
+% %%
 % mean(analysis_error_hinf, 2)
 % std(analysis_error_hinf, 0, 2)
-% 
+% %%
 % mean(analysis_incov_error_norm)
 % std(analysis_incov_error_norm, 0, 2)
-% 
+% %%
 % mean(analysis_outcov_error_norm, 2)
 % std(analysis_outcov_error_norm, 0, 2)
-% 
+% %%
 % mean(time_full)
-% std(time_full)
 % mean(time_reduce)
-% std(time_reduce)
 % mean(time_sim)
+% %%
+% std(time_reduce)
+% std(time_full)
 % std(time_sim)
 
 %% 辅助函数

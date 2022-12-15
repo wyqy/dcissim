@@ -55,7 +55,7 @@ iden_classic_init = idenDCISSIMLaucher(sim_result_struct.un, 'y_size', para_ysiz
     'dcissim_type', 'offline', 'isim_excitation_type', 'full', 'x_size_upbound', para_iden_x_size_bound, 'sim_ss_bdx_type', para_iden_sim_ss_bdx_type, 'sim_ss_d_type', para_iden_sim_ss_d_type, 'cov_cross_type', para_iden_cov_cross_type, ...
     'sim_x_size_type', 'fixed', 'cov_order_type', 'estimate', 'sim_x_size', para_xsize, 'cov_est_type', 'classical');
 
-%% 对每个随机模型运行一次
+%% 对随机模型运行多次
 for iter_exp = 1:para_experiment_count
     %% 重新生成扰动数据
     sim_result_struct = plantSimulationNoise(result_original, sim_excitation_signal, sim_noise_rs);
@@ -130,6 +130,7 @@ for iter_exp = 1:para_experiment_count  %(默认para_ysize >= para_xsize)
     analysis_inoutcov_error(1, para_xsize*para_xsize+para_ysize*para_ysize+1:end, iter_exp) = reshape(temp_simple_cov_tt-temp_ori_cov_tt, [], 1);
     analysis_inoutcov_error(2, para_xsize*para_xsize+para_ysize*para_ysize+1:end, iter_exp) = reshape(temp_classic_cov_tt-temp_ori_cov_tt, [], 1);
     [analysis_incov_error_norm(1, 1, iter_exp), ~] = sys_compare(temp_ori_cov_tt, temp_simple_cov_tt);
+    [analysis_incov_error_norm(2, 1, iter_exp), ~] = sys_compare(temp_ori_cov_tt, temp_classic_cov_tt);
     % 输出数据计算
     temp_ori_cov_ww = result_original.cov(1:para_xsize, 1:para_xsize); temp_ori_cov_vv = result_original.cov(para_xsize+1:para_xsize+para_ysize, para_xsize+1:para_xsize+para_ysize);
     temp_simple_cov_ww = result_simple_cell{iter_exp}.cov(1:analysis_xsize(2, iter_exp), 1:analysis_xsize(2, iter_exp)); temp_simple_cov_vv = result_simple_cell{iter_exp}.cov(analysis_xsize(2, iter_exp)+1:analysis_xsize(2, iter_exp)+para_ysize, analysis_xsize(2, iter_exp)+1:analysis_xsize(2, iter_exp)+para_ysize);
@@ -171,11 +172,11 @@ analysis_cov_location = 1;
 % ax = anaPlotCov(analysis_outcov_series(:, :, analysis_cov_location)); % title(ax, 'Coavariance plot for minimum d\_{Hinf}');
 
 %% 输出方差分布图
-analysis_spot_inout_3d = cat(2, analysis_outcov_error_norm(1, :, :), analysis_incov_error_norm(1, :, :));
-analysis_spot_out_2d = analysis_outcov_error_norm;
-% ax = auxPlotSpace(analysis_spot_inout_3d);
-% ax = auxPlotSpace(analysis_spot_out_2d);
-% ax = auxPlotSpace(analysis_inoutcov_error);
+analysis_spot_inout_3d = cat(2, analysis_outcov_error_norm, analysis_incov_error_norm);
+% analysis_spot_out_2d = analysis_outcov_error_norm;
+% ax = anaPlotSpace(analysis_spot_inout_3d);
+% ax = anaPlotSpace(analysis_spot_out_2d);
+% ax = anaPlotSpace(analysis_inoutcov_error);
 
 %% 输出时间
 disp(['Time used: ', mat2str(mean(time_full), 2), ' / ', mat2str(mean(time_reduce), 2)]);
@@ -216,11 +217,11 @@ end
 % mean(analysis_error_hinf, 2)
 % std(analysis_error_hinf, 0, 2)
 % 
-% mean(analysis_incov_error_norm)
-% std(analysis_incov_error_norm, 0, 2)
+% mean(analysis_incov_error_norm, 3)
+% std(analysis_incov_error_norm, 0, 3)
 % 
-% mean(analysis_outcov_error_norm, 2)
-% std(analysis_outcov_error_norm, 0, 2)
+% mean(analysis_outcov_error_norm, 3)
+% std(analysis_outcov_error_norm, 0, 3)
 % 
 % mean(time_full)
 % std(time_full)

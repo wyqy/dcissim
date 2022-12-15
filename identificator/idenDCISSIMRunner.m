@@ -39,9 +39,9 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yn, un)
     if isempty(is_inited)
         v_size = size(mat_s, 1);
         n = 0;
-        x_size_sim = 1; y_isim = zeros(y_size, v_size); u_isim = zeros(u_size, v_size);
-        mat_x_sim = zeros(1, v_size); mat_a_sim = 0; mat_b_sim = zeros(1, u_size); mat_c_sim = zeros(y_size, 1); mat_d_sim = zeros(y_size, u_size);
-        cov = zeros(1+y_size+u_size); kalman_gain = zeros(1, y_size); covariance_struct = struct('cov', cov, 'kalman', kalman_gain);
+        x_size_sim = sim_x_size; y_isim = zeros(y_size, v_size); u_isim = zeros(u_size, v_size);
+        mat_x_sim = zeros(x_size_sim, v_size); mat_a_sim = zeros(x_size_sim); mat_b_sim = zeros(x_size_sim, u_size); mat_c_sim = zeros(y_size, 1); mat_d_sim = zeros(y_size, u_size);
+        cov = zeros(x_size_sim+y_size+u_size); kalman_gain = zeros(x_size_sim, y_size); covariance_struct = struct('cov', cov, 'kalman', kalman_gain);
         is_inited = 1;
     end
 
@@ -78,15 +78,12 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yn, un)
             % ISIM辨识
             vn = sin((regressor_frequencies*n) + regressor_phi);
             [y_isim, u_isim] = idenISIM(yn, un, vn, 'recursive');
+            % SIM辨识
+            [mat_a_sim, mat_c_sim, x_size_sim] = idenACN(y_isim, u_isim, mat_s, x_size_upbound, sim_x_size, sim_x_size_type);
+            [mat_b_sim, mat_d_sim, mat_x_sim] = idenBDX(y_isim, u_isim, mat_s, mat_a_sim, mat_c_sim, x_size_sim, sim_ss_bdx_type, sim_ss_d_type);
             % 节省计算时间
-            if mod(n, period_samples) == 0
-                % SIM辨识
-                [mat_a_sim, mat_c_sim, x_size_sim] = idenACN(y_isim, u_isim, mat_s, x_size_upbound, sim_x_size, sim_x_size_type);
-                [mat_b_sim, mat_d_sim, mat_x_sim] = idenBDX(y_isim, u_isim, mat_s, mat_a_sim, mat_c_sim, x_size_sim, sim_ss_bdx_type, sim_ss_d_type);
-                % 无方差辨识
-                covariance_struct = struct('cov', zeros(x_size_sim+y_size+u_size), 'kalman', zeros(x_size_sim, y_size));
-            end
-        otherwise, x_size_sim = 0; mat_a_sim = 0; mat_c_sim = 0; mat_b_sim = 0; mat_d_sim = 0; mat_x_sim = 0; covariance_struct = struct('cov', 0, 'kalman_gain', 0);
+            % if mod(n, period_samples) == 0, end
+            % 无方差辨识
     end
     
     % 防止可能的虚参数
