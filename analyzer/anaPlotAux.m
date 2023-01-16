@@ -15,7 +15,7 @@ function anaPlotAux(obj, font_size, line_width)
         obj.XColor = [.3,.3,.3];
         obj.YColor = [.3,.3,.3];
         obj.FontWeight = 'bold';
-        obj.FontName = 'Cambria';
+        obj.FontName = 'Arial';
         obj.FontSize = font_size;
     elseif isgraphics(obj, 'Line')
         obj.LineWidth = line_width;

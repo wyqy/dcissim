@@ -44,9 +44,9 @@ function fig = anaPlotBode(ss_cell, varargin)
         plotoptions = bodeoptions('cstprefs');  % ctrlpref
         plotoptions.PhaseWrapping = 'on';
         plotoptions.IOGrouping = 'all';
-        plotoptions.XLabel.String = '\fontname{Cambria}{Frequency}'; plotoptions.XLabel.FontSize = font_size; plotoptions.XLabel.FontWeight = 'bold'; plotoptions.XLabel.Interpreter = 'tex';
-        plotoptions.YLabel.String = {'\fontname{Cambria}{Amplitude}', '\fontname{Cambria}{Phase}'}; plotoptions.YLabel.FontSize = font_size; plotoptions.YLabel.FontWeight = 'bold'; plotoptions.YLabel.Interpreter = 'tex';
-        if y_size ~= 1 || u_size ~= 1, plotoptions.Title.String = ['\fontname{Cambria}u' int2str(location_row) ' - y' int2str(locaiton_col)]; plotoptions.Title.FontSize = font_size;
+        plotoptions.XLabel.String = '\fontname{Arial}{Frequency}'; plotoptions.XLabel.FontSize = font_size; plotoptions.XLabel.FontWeight = 'bold'; plotoptions.XLabel.Interpreter = 'tex';
+        plotoptions.YLabel.String = {'\fontname{Arial}{Amplitude}', '\fontname{Arial}{Phase}'}; plotoptions.YLabel.FontSize = font_size; plotoptions.YLabel.FontWeight = 'bold'; plotoptions.YLabel.Interpreter = 'tex';
+        if y_size ~= 1 || u_size ~= 1, plotoptions.Title.String = ['\fontname{Arial}u' int2str(location_row) ' - y' int2str(locaiton_col)]; plotoptions.Title.FontSize = font_size;
         else, plotoptions.Title.String = ''; end
         plotoptions.Title.FontSize = font_size; plotoptions.Title.FontWeight = 'bold'; plotoptions.Title.Interpreter = 'tex';
         temp_state = state_cell_row; temp_state{location_row} = 'on'; plotoptions.InputVisible = temp_state;

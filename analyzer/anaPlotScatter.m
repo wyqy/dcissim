@@ -23,16 +23,16 @@ function fig = anaPlotScatter(source_data)
             scatter(ax, shiftdim(source_data(iter_data, 1, :)), shiftdim(source_data(iter_data, 2, :)), ...
                 spot_size(iter_data), spot_color{iter_data}, spot_mark{iter_data}, 'LineWidth', line_width); hold on;
         end
-        xlabel(ax, 'error of w', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
-        ylabel(ax, 'error of v', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
+        xlabel(ax, 'error of w', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Arial');
+        ylabel(ax, 'error of v', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Arial');
     elseif dim_size == 3
         for iter_data = 1:data_size
             scatter3(ax, shiftdim(source_data(iter_data, 1, :)), shiftdim(source_data(iter_data, 2, :)), shiftdim(source_data(iter_data, 3, :)), ...
                 spot_size(iter_data), spot_color{iter_data}, spot_mark{iter_data}, 'LineWidth', line_width); hold on;
         end
-        xlabel(ax, 'error of \color[rgb]{1,1,1} \ldots \color[rgb]{.3,.3,.3} \omega', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
-        ylabel(ax, 'error of \color[rgb]{1,1,1} \ldots \color[rgb]{.3,.3,.3} \nu', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
-        zlabel(ax, 'error of \color[rgb]{1,1,1} \ldots \color[rgb]{.3,.3,.3} \tau', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Cambria');
+        xlabel(ax, 'error of \color[rgb]{1,1,1} \ldots \color[rgb]{.3,.3,.3} \omega', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Arial');
+        ylabel(ax, 'error of \color[rgb]{1,1,1} \ldots \color[rgb]{.3,.3,.3} \nu', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Arial');
+        zlabel(ax, 'error of \color[rgb]{1,1,1} \ldots \color[rgb]{.3,.3,.3} \tau', 'FontSize', font_size, 'FontWeight', 'bold', 'FontName', 'Arial');
     end
 
     % 寻找axes
