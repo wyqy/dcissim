@@ -46,7 +46,7 @@ function ret_struct = idenDCISSIMLaucher(un_test, varargin)
         case 'full'  % 全激励频率
             frequencies = fullExcitationFrequencies(period_samples);
         case 'reduced'  % 部分激励频率
-            un_test = un_test(:, 1:period_samples);
+            un_test = un_test(:, cutted_periods*period_samples+1:(cutted_periods+1)*period_samples);
             frequencies = reducedExcitationFrequencies(un_test, period_samples, frequencies_bound);
         otherwise, frequencies = 0;
     end
@@ -105,43 +105,55 @@ function frequencies = reducedExcitationFrequencies(un_test, period_samples, fre
 end
 
 function selector = peakFinder(mat_curve, peak_number)
-% 样条插值包络 + 峰值提取方法寻找采样频率点, 默认曲线非负
 
-    % 参数计算
-    channel_size = size(mat_curve, 1);
+    % 直接从离群值点中取(保证数目足够, 从高到低依次取)
+    % 参数计算 & 准备
     curve_size = size(mat_curve, 2);
+    selector = zeros(1, curve_size);
+    thresold = 100 * (1 - (peak_number/curve_size)) - 3;
 
-    % 准备数组
-    select_number = 0;
-    pre_selector = zeros(1, curve_size);  % 临时存储点
-    selector = zeros(1, curve_size);  % 最终选择点
+    % 离群值
+    tf_ori = isoutlier(mat_curve, 'percentiles', [0 thresold], 2);
+    % 取所有通道的离群值所在位置的最大值点
+    curve_max = max(mat_curve, [], 1);
+    curve_max(tf_ori == 0) = 0;
+    % 将联合所有通道的点排序
+    [~, sort_idx] = sort(curve_max, 'descend');
+    selector(sort_idx(1:peak_number)) = 1;
 
-    % 按照预定义的尺寸提取包络峰值, 若最后点数不够再缩小查找尺度
-    envelope_np = ceil(curve_size/(5*peak_number));  % 5为经验参数
-    while select_number < peak_number
-        % 按照当前查找尺度查找并记录peak点
-        pre_selector_value_mat = zeros(size(mat_curve));  % 预记录数组
-        for iter_channel = 1:channel_size
-            % 局部极值点的样条插值包络
-            [iter_curve_envelope, ~] = envelope(mat_curve(iter_channel, :), envelope_np, 'peak');
-            % 查找交点
-            iter_curve_envelope_peak_location = iter_curve_envelope == mat_curve(iter_channel, :);
-            iter_curve_envelope_peak_value = iter_curve_envelope(iter_curve_envelope_peak_location);
-            pre_selector_value_mat(iter_channel, iter_curve_envelope_peak_location) = iter_curve_envelope_peak_value;
-            % [iter_curve_envelope_peak_value, iter_curve_envelope_peak_location] = findpeaks(iter_curve_envelope);  % 峰值在包络线的np过大时存在问题, 考虑np是由大到小变化的, 因此使用交点
-        end
-        % 从所有通道中选择最大值点
-        pre_selector_value_vec = max(pre_selector_value_mat, [], 1);
-        [pre_selector_value_vec_sort, pre_selector_value_vec_sort_location] = sort(pre_selector_value_vec, 'descend');
-        pre_selector(pre_selector_value_vec_sort_location(pre_selector_value_vec_sort > 0)) = pre_selector_value_vec_sort(pre_selector_value_vec_sort > 0);
-        % 更新
-        envelope_np = ceil(envelope_np/5);  % 5为经验参数
-        select_number = sum(pre_selector > 0);
-    end
-
-    % 若点过多, 则根据记录的幅值重选择
-    [~, select_sort_locaiton] = sort(pre_selector, 'descend');
-    selector(select_sort_locaiton(1:peak_number)) = 1;
+    % % 样条插值包络 + 峰值提取方法寻找采样频率点, 默认曲线非负
+    % % 参数计算
+    % channel_size = size(mat_curve, 1);
+    % curve_size = size(mat_curve, 2);
+    % % 准备数组
+    % select_number = 0;
+    % pre_selector = zeros(1, curve_size);  % 临时存储点
+    % selector = zeros(1, curve_size);  % 最终选择点
+    % % 按照预定义的尺寸提取包络峰值, 若最后点数不够再缩小查找尺度
+    % envelope_np = ceil(curve_size/(5*peak_number));  % 5为经验参数
+    % while select_number < peak_number
+    %     % 按照当前查找尺度查找并记录peak点
+    %     pre_selector_value_mat = zeros(size(mat_curve));  % 预记录数组
+    %     for iter_channel = 1:channel_size
+    %         % 局部极值点的样条插值包络
+    %         [iter_curve_envelope, ~] = envelope(mat_curve(iter_channel, :), envelope_np, 'peak');
+    %         % 查找交点
+    %         iter_curve_envelope_peak_location = iter_curve_envelope == mat_curve(iter_channel, :);
+    %         iter_curve_envelope_peak_value = iter_curve_envelope(iter_curve_envelope_peak_location);
+    %         pre_selector_value_mat(iter_channel, iter_curve_envelope_peak_location) = iter_curve_envelope_peak_value;
+    %         % [iter_curve_envelope_peak_value, iter_curve_envelope_peak_location] = findpeaks(iter_curve_envelope);  % 峰值在包络线的np过大时存在问题, 考虑np是由大到小变化的, 因此使用交点
+    %     end
+    %     % 从所有通道中选择最大值点
+    %     pre_selector_value_vec = max(pre_selector_value_mat, [], 1);
+    %     [pre_selector_value_vec_sort, pre_selector_value_vec_sort_location] = sort(pre_selector_value_vec, 'descend');
+    %     pre_selector(pre_selector_value_vec_sort_location(pre_selector_value_vec_sort > 0)) = pre_selector_value_vec_sort(pre_selector_value_vec_sort > 0);
+    %     % 更新
+    %     envelope_np = ceil(envelope_np/5);  % 5为经验参数
+    %     select_number = sum(pre_selector > 0);
+    % end
+    % % 若点过多, 则根据记录的幅值重选择
+    % [~, select_sort_locaiton] = sort(pre_selector, 'descend');
+    % selector(select_sort_locaiton(1:peak_number)) = 1;
     
 end
 
@@ -181,4 +193,5 @@ function mat_s = matSIniter(period_samples, frequencies)
             [cos(omega_iter) sin(omega_iter); -sin(omega_iter) cos(omega_iter)];
         location_base = location_base + 2;
     end
+    
 end

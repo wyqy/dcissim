@@ -53,6 +53,8 @@ function [retPeriod, retMultiply] = leastCommonPeriod(continuous_frequencies)
 % T = a*t1 = b*t2;
 % a/b = tp/qs;
     
+    % 为循环计算方便, 补一个数
+    continuous_frequencies = [continuous_frequencies continuous_frequencies(end)];
     % 转为符号变量
     sym_freq = sym(continuous_frequencies, 'r');
 
@@ -82,7 +84,7 @@ function [retPeriod, retMultiply] = leastCommonPeriod(continuous_frequencies)
     retPeriod = double(period);
     retMultiply = repmat(period, [1 n]);
     retMultiply = retMultiply .* sym_freq;
-    retMultiply = double(retMultiply);
+    retMultiply = double(retMultiply(1:end-1));  % 删掉补值
 end
 
 function amplitudes = amplitudesBuilder(signal_size, signal_interval, frequencies_number)

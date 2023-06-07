@@ -61,13 +61,13 @@ for iter_exp = 1:para_experiment_count
     sim_result_struct = plantSimulationNoise(result_original, sim_excitation_signal, sim_noise_rs);
     un = sim_result_struct.un; yn = sim_result_struct.yn;
     
-    %% 辨识方差参数 - dcISSIM (full)
+    %% 辨识方差参数 - dcISSIM (simple)
     tic;
     result_simple_cell{iter_exp} = idenDCISSIMRunner(iden_simple_init, yn, un);
     % 计时
     time_full(iter_exp) = toc;
     
-    %% 辨识方差参数 - dcISSIM (reduced)
+    %% 辨识方差参数 - dcISSIM (classical)
     tic;
     result_classic_cell{iter_exp} = idenDCISSIMRunner(iden_classic_init, yn, un);
     % 计时
