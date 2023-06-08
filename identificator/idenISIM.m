@@ -1,4 +1,4 @@
-function [y_isim, u_isim] = idenISIM(yn, un, vn, isim_lsq_type)
+function [yv_est, uv_est] = idenISIM(yk, uk, vk, isim_lsq_type)
 % IDENISIM 辨识U(v)和Y(v)矩阵
 
     % recursive变量数值存储在这里
@@ -8,25 +8,34 @@ function [y_isim, u_isim] = idenISIM(yn, un, vn, isim_lsq_type)
     switch isim_lsq_type
         case 'ordinary' % 离线: 直接做QR分解和COD分解的OLS
             % 参数计算
-            y_size = size(yn, 1); u_size = size(un, 1); v_size = size(vn, 1);
-            signal_sample = size(yn, 2);
-            yn = yn.'; un = un.'; vn = vn.';
-            yun = [yn un];
+            y_size = size(yk, 1);
+            u_size = size(uk, 1);
+            v_size = size(vk, 1);
+            sample_size = size(yk, 2);
+            % 准备
+            yk = yk.';
+            uk = uk.';
+            vk = vk.';
+            yuk = [yk uk];
+
             % 最小二乘
-            % yu_isim = lsqminnorm(vn, yun);
-            [yu_isim, flag] = lsqr(kron(eye(y_size+u_size), vn), reshape(yun, [(y_size+u_size)*signal_sample 1]), 1e-8);
-            if flag ~= 0, yu_isim = zeros(v_size, (y_size+u_size));
-            else, yu_isim = reshape(yu_isim, [v_size (y_size+u_size)]); end
+            if v_size > sample_size/2  % 频率较多
+                [yuv_est, flag] = lsqr(kron(eye(y_size+u_size), vk), reshape(yuk, [(y_size+u_size)*sample_size 1]), 1e-6, 100);
+                if flag ~= 0, yuv_est = zeros(v_size, (y_size+u_size));
+                else, yuv_est = reshape(yuv_est, [v_size (y_size+u_size)]); end
+            else  % 频率较少
+                yuv_est = lsqminnorm(vk, yuk);
+            end
             % 返回值
-            yu_isim = yu_isim.';
-            y_isim = yu_isim(1:y_size, :);
-            u_isim = yu_isim(y_size+1:end, :);
+            yuv_est = yuv_est.';
+            yv_est = yuv_est(1:y_size, :);
+            uv_est = yuv_est(y_size+1:end, :);
             
         case 'recursive' % 在线: 逐个样本点做RLS
             % 首次使用, 初始化
             if isempty(is_inited)
                 % 参数计算
-                y_size = size(yn, 1); u_size = size(un, 1); v_size = size(vn, 1);
+                y_size = size(yk, 1); u_size = size(uk, 1); v_size = size(vk, 1);
                 % 矩阵生成
                 seed = rng().Seed;
                 rs = RandStream('dsfmt19937', 'Seed', seed);
@@ -38,7 +47,7 @@ function [y_isim, u_isim] = idenISIM(yn, un, vn, isim_lsq_type)
             % 已有值, 迭代一步
             else
                 % 开始迭代
-                vec_yu = [yn; un]; vec_v = vn;
+                vec_yu = [yk; uk]; vec_v = vk;
                 mat_phi = kron(vec_v, eye(y_size+u_size));
                 
                 dmat_a = decomposition(mat_lambda + (mat_phi.') * mat_p * mat_phi);
@@ -47,11 +56,11 @@ function [y_isim, u_isim] = idenISIM(yn, un, vn, isim_lsq_type)
                 vec_r = vec_r + mat_k * (vec_yu - (mat_phi.') * vec_r);
 
                 % 返回数值
-                yu_isim = reshape(vec_r, [(y_size+u_size) v_size]);
-                y_isim = yu_isim(1:y_size, :);
-                u_isim = yu_isim(y_size+1:end, :);
+                yuv_est = reshape(vec_r, [(y_size+u_size) v_size]);
+                yv_est = yuv_est(1:y_size, :);
+                uv_est = yuv_est(y_size+1:end, :);
             end
-        otherwise, y_isim = 0; u_isim = 0;
+        otherwise, yv_est = 0; uv_est = 0;
     end
 
 end

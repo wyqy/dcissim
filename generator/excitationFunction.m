@@ -1,5 +1,5 @@
-function out = genFunction(generator_info, period_sample, signal_size, signal_step)
-%GENFUNCTION functional 信号生成
+function out = excitationFunction(generator_info, period_sample, signal_size, signal_step)
+%EXCITATIONFUNCTION functional 信号生成
 % 给定信号表达式, 返回[0, N-1]下的截断信号
 % 为减少不同周期间的冲激, 逐元素减去y = (sig(N-1)-sig(0))/(N-1) * n的值
 % 输出size @ (size period_sample)

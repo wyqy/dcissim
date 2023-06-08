@@ -30,13 +30,13 @@ function ret_struct = genExcitationSignal(varargin)
     % 单周期信号生成
     switch type
         case 'multisine'
-            signal= genMultisine(generator_info, signal_size, signal_step);
+            signal= excitationMultisine(generator_info, signal_size, signal_step);
         case 'function'
-            signal = genFunction(generator_info, period_sample, signal_size, signal_step);
+            signal = excitationFunction(generator_info, period_sample, signal_size, signal_step);
         case 'outside'
-            signal = genOutside(generator_info, period_sample, signal_size, signal_step);
+            signal = excitationOutside(generator_info, period_sample, signal_size, signal_step);
         case 'random'
-            signal = genRandom(generator_info, period_sample, signal_size, signal_step);
+            signal = excitationRandom(generator_info, period_sample, signal_size, signal_step);
         otherwise, signal = 0;
     end
     % 修正周期采样点数

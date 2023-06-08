@@ -1,197 +1,207 @@
-function ret_struct = idenDCISSIMLaucher(un_test, varargin)
+function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
 % IDENDCISSIMLAUCHER discrete-cISSIM系统辨识 - 初始化
 
     % 输入解析
     parser = inputParser;
     % 输入定义
-    addParameter(parser, 'y_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
-    addParameter(parser, 'u_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
-    addParameter(parser, 'period_samples', 1, @(i)(isnumeric(i)&&isscalar(i)));
-    addParameter(parser, 'cutted_periods', 0, @(i)(isnumeric(i)&&isscalar(i)));
-    addParameter(parser, 'dcissim_type', 'offline', @(i)(ischar(i)));
-    addParameter(parser, 'isim_excitation_type', 'full', @(i)(ischar(i)));
-    addParameter(parser, 'x_size_upbound', 1, @(i)(isnumeric(i)&&isscalar(i)));
-    addParameter(parser, 'sim_ss_bdx_type', 'analytical', @(i)(ischar(i)));
-    addParameter(parser, 'sim_ss_d_type', 'null', @(i)(ischar(i)));
-    addParameter(parser, 'cov_cross_type', 'null', @(i)(ischar(i)));
-    addParameter(parser, 'sim_x_size_type', 'estimate', @(i)(ischar(i)));
-    addParameter(parser, 'cov_order_type', 'estimate', @(i)(ischar(i)));
-    addParameter(parser, 'sim_x_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
-    addParameter(parser, 'cov_order', 1, @(i)(isnumeric(i)&&isscalar(i)));
-    addParameter(parser, 'cov_est_type', 'simple', @(i)(ischar(i)));
+    addParameter(parser, 'ysize', 1, @(i)(isnumeric(i)&&isscalar(i)));
+    addParameter(parser, 'usize', 1, @(i)(isnumeric(i)&&isscalar(i)));
+    addParameter(parser, 'xsize_upbound', 1, @(i)(isnumeric(i)&&isscalar(i)));
+    addParameter(parser, 'samples_period', 1, @(i)(isnumeric(i)&&isscalar(i)));
+
+    addParameter(parser, 'isstep', 'offline', @(i)(ischar(i)));
+    addParameter(parser, 'use_freq', 'full', @(i)(ischar(i)));
+    addParameter(parser, 'est_xsize', 'estimate', @(i)(ischar(i)));
+    addParameter(parser, 'est_aorder', 'estimate', @(i)(ischar(i)));
+    addParameter(parser, 'est_cov', 'simple', @(i)(ischar(i)));
+    
+    addParameter(parser, 'plant_d', 'null', @(i)(ischar(i)));
+    addParameter(parser, 'cov_cross', 'null', @(i)(ischar(i)));
+    addParameter(parser, 'prior', struct('xsize', 1, 'aorder', 1), @(i)(isstruct(i)));
+    
     % 输入提取
     parse(parser, varargin{:});
-    y_size = parser.Results.y_size;  % 输出信号维数
-    u_size = parser.Results.u_size;  % 输出信号维数
-    period_samples = parser.Results.period_samples;  % 单周期采样点数
-    cutted_periods = parser.Results.cutted_periods;  % 切除的非稳态部分, 按周期计数 (only in 离线和方差估计)
-    dcissim_type = parser.Results.dcissim_type;  % 算法运行方式 - 离线or在线
-    isim_excitation_type = parser.Results.isim_excitation_type;  % ISIM激励方式
-    x_size_upbound = parser.Results.x_size_upbound;  % 状态变量上界
-    sim_ss_bdx_type = parser.Results.sim_ss_bdx_type;  % SIM求解方式
-    sim_ss_d_type = parser.Results.sim_ss_d_type;  % D矩阵是否辨识
-    cov_cross_type = parser.Results.cov_cross_type;  % 是否具有协方差
-    sim_x_size_type = parser.Results.sim_x_size_type;  % 状态变量估计方式
-    cov_order_type = parser.Results.cov_order_type;  % 协方差估计方式
-    sim_x_size = parser.Results.sim_x_size;  % 预定义状态变量大小
-    cov_order = parser.Results.cov_order;  % 预定义自协方差估计阶数
-    cov_est_type = parser.Results.cov_est_type;  % 定义方差估计方法
+    y_size = parser.Results.ysize;  % 输出信号维数
+    u_size = parser.Results.usize;  % 输出信号维数
+    x_size_upbound = parser.Results.xsize_upbound;  % 状态变量上界
+    samples_period = parser.Results.samples_period;  % 单周期采样点数
+    
+    algo_type = parser.Results.isstep;  % 离线/在线运行
+    freq_type = parser.Results.use_freq;  % ISIM激励方式
+    xsize_est_type = parser.Results.est_xsize;  % 状态变量估计方式
+    aorder_est_type = parser.Results.est_aorder;  % 相关函数计算量估计方式
+    als_est_type = parser.Results.est_cov;  % 方差估计方法
+
+    plant_d_type = parser.Results.plant_d;  % D矩阵是否为零(是否直通)
+    cov_cross_type = parser.Results.cov_cross;  % 是否具有协方差
+    prior = parser.Results.prior;  % 系统阶数和相关函数计算量的先验值
+    
 
     % 运行时准备
     % 清除临时存储
     clear idenISIM idenDCISSIMRunner
     % 准备辨识频率
-    frequencies_bound = persistentExcitationCondition(x_size_upbound, u_size);
-    switch isim_excitation_type
+    freq_bound = persistentExcitationCondition(x_size_upbound, u_size);
+    switch freq_type
         case 'full'  % 全激励频率
-            frequencies = fullExcitationFrequencies(period_samples);
+            freqs_list = 0:fix(samples_period/2);
         case 'reduced'  % 部分激励频率
-            un_test = un_test(:, cutted_periods*period_samples+1:(cutted_periods+1)*period_samples);
-            frequencies = reducedExcitationFrequencies(un_test, period_samples, frequencies_bound);
-        otherwise, frequencies = 0;
+            uk_test = uk_test(:, samples_period+1:2*samples_period);  % 从第二个周期开始
+            freqs_list = reducedFreqList(uk_test, samples_period, freq_bound);
+        otherwise, freqs_list = 0;
     end
-    % 初始化回归元
-    mat_s = matSIniter(period_samples, frequencies);
-    regressor = idenRegressor(period_samples, frequencies, 1, 'recursive');
-    % 对于在线辨识 - 初始化参数
-    if strcmp(dcissim_type, 'online') || strcmp(dcissim_type, 'online-test')
+    % 转换为角频率
+    omega = (2*pi)/samples_period;
+    freqs_list = omega.*freqs_list;
+    % 初始化临界系统
+    [mat_s, regressor] = invariantIniter(freqs_list);
+    % 在线辨识 - 初始化参数
+    if strcmp(algo_type, 'online') || strcmp(algo_type, 'online-test')
         v_size = size(mat_s, 1);
         idenISIM(zeros(y_size, 1), zeros(u_size, 1), zeros(v_size, 1), 'recursive');
     end
+
     % 返回值
-    ret_struct = struct('y_size', y_size, 'u_size', u_size, 'period_samples', period_samples, 'cutted_periods', cutted_periods, ...
-        'dcissim_type', dcissim_type, 'isim_excitation_type', isim_excitation_type, 'x_size_upbound', x_size_upbound, 'sim_ss_bdx_type', sim_ss_bdx_type, 'sim_ss_d_type', sim_ss_d_type, 'cov_cross_type', cov_cross_type, ...
-        'frequencies', frequencies, 'mat_s', mat_s, ...
-        'regressor', regressor, 'sim_x_size_type', sim_x_size_type, 'cov_order_type', cov_order_type, 'sim_x_size', sim_x_size, 'cov_order', cov_order, ...
-        'cov_est_type', cov_est_type);
+    ret_struct = struct( 'mat_s', mat_s, 'regressor', regressor, 'prior', prior, ...
+        'y_size', y_size, 'u_size', u_size, 'x_size_upbound', x_size_upbound, 'samples_period', samples_period,  ...
+        'algo_type', algo_type, 'freq_type', freq_type, 'xsize_est_type', xsize_est_type, 'aorder_est_type', aorder_est_type, 'als_est_type', als_est_type, ...
+        'plant_d_type', plant_d_type, 'cov_cross_type', cov_cross_type);
 
 end
 
-function frequencies_bound = persistentExcitationCondition(x_size_upbound, u_size)
+function freq_bound = persistentExcitationCondition(x_size_upbound, u_size)
 % 持续激励条件(未知信号阶数, 用上界近似)
-    frequencies_bound = u_size*2*x_size_upbound;
+    freq_bound = u_size*2*x_size_upbound;
 end
 
-function frequencies = fullExcitationFrequencies(period_samples)
-% 全频率
-    frequencies = 0:fix(period_samples/2);
-end
-
-function frequencies = reducedExcitationFrequencies(un_test, period_samples, frequencies_bound)
+function freqs_list = reducedFreqList(uk_test, samples_period, freqs_bound)
 % 选择频率
 % 方法: 满足持续激励条件(再多几个频率点), 按照输入信号对应fft的幅值从高到低依次选择
 % 最后总是加上零频率
 
     % 参数计算
-    harmonic_size = fix(period_samples/2)+1;
+    harmonic_size = fix(samples_period/2)+1;  % 频率上限
+    freqs_bound = min(round(freqs_bound*3), harmonic_size);  % 升维度, 3为经验参数
 
-    % 升维度
-    frequencies_bound = min(round(frequencies_bound*3), harmonic_size);  % 3为经验参数
     % FFT
-    ufreq = fft(un_test, period_samples, 2);
+    ufreq = fft(uk_test, samples_period, 2);
     ufreq_abs = abs(ufreq(:, 1:harmonic_size));
 
-    % 局部极值样条包络交点法提取频率点
-    frequencies_selection = peakFinder(ufreq_abs, frequencies_bound);
+    % 提取频率点
+    frequencies_selection = peakFinder(ufreq_abs, freqs_bound);
     
     % plot
     % figure; plot(ufreq_abs); hold on; stem(max(ufreq_abs, [], 'all')*frequencies_selection);
     % 返回值
-    frequencies = 0:harmonic_size-1;
-    frequencies = frequencies(logical(frequencies_selection));
+    freqs_list = 0:harmonic_size-1;
+    freqs_list = freqs_list(frequencies_selection == 1);
     % 加上零频率
-    if frequencies(1) ~= 0, frequencies = [0 frequencies]; end
+    if freqs_list(1) ~= 0, freqs_list = [0 freqs_list]; end
 
 end
 
-function selector = peakFinder(mat_curve, peak_number)
+function selected_freq = peakFinder(ufreq_abs, peak_number)
 
-    % 直接从离群值点中取(保证数目足够, 从高到低依次取)
-    % 参数计算 & 准备
-    curve_size = size(mat_curve, 2);
-    selector = zeros(1, curve_size);
-    thresold = 100 * (1 - (peak_number/curve_size)) - 3;
-
-    % 离群值
-    tf_ori = isoutlier(mat_curve, 'percentiles', [0 thresold], 2);
-    % 取所有通道的离群值所在位置的最大值点
-    curve_max = max(mat_curve, [], 1);
-    curve_max(tf_ori == 0) = 0;
-    % 将联合所有通道的点排序
-    [~, sort_idx] = sort(curve_max, 'descend');
-    selector(sort_idx(1:peak_number)) = 1;
-
-    % % 样条插值包络 + 峰值提取方法寻找采样频率点, 默认曲线非负
-    % % 参数计算
-    % channel_size = size(mat_curve, 1);
-    % curve_size = size(mat_curve, 2);
-    % % 准备数组
-    % select_number = 0;
-    % pre_selector = zeros(1, curve_size);  % 临时存储点
-    % selector = zeros(1, curve_size);  % 最终选择点
-    % % 按照预定义的尺寸提取包络峰值, 若最后点数不够再缩小查找尺度
-    % envelope_np = ceil(curve_size/(5*peak_number));  % 5为经验参数
-    % while select_number < peak_number
-    %     % 按照当前查找尺度查找并记录peak点
-    %     pre_selector_value_mat = zeros(size(mat_curve));  % 预记录数组
-    %     for iter_channel = 1:channel_size
-    %         % 局部极值点的样条插值包络
-    %         [iter_curve_envelope, ~] = envelope(mat_curve(iter_channel, :), envelope_np, 'peak');
-    %         % 查找交点
-    %         iter_curve_envelope_peak_location = iter_curve_envelope == mat_curve(iter_channel, :);
-    %         iter_curve_envelope_peak_value = iter_curve_envelope(iter_curve_envelope_peak_location);
-    %         pre_selector_value_mat(iter_channel, iter_curve_envelope_peak_location) = iter_curve_envelope_peak_value;
-    %         % [iter_curve_envelope_peak_value, iter_curve_envelope_peak_location] = findpeaks(iter_curve_envelope);  % 峰值在包络线的np过大时存在问题, 考虑np是由大到小变化的, 因此使用交点
-    %     end
-    %     % 从所有通道中选择最大值点
-    %     pre_selector_value_vec = max(pre_selector_value_mat, [], 1);
-    %     [pre_selector_value_vec_sort, pre_selector_value_vec_sort_location] = sort(pre_selector_value_vec, 'descend');
-    %     pre_selector(pre_selector_value_vec_sort_location(pre_selector_value_vec_sort > 0)) = pre_selector_value_vec_sort(pre_selector_value_vec_sort > 0);
-    %     % 更新
-    %     envelope_np = ceil(envelope_np/5);  % 5为经验参数
-    %     select_number = sum(pre_selector > 0);
-    % end
-    % % 若点过多, 则根据记录的幅值重选择
-    % [~, select_sort_locaiton] = sort(pre_selector, 'descend');
-    % selector(select_sort_locaiton(1:peak_number)) = 1;
-    
-end
-
-function mat_s = matSIniter(period_samples, frequencies)
-% S矩阵计算
-
-    % 参数准备
-    frequencies = unique(frequencies, 'sorted');  % 默认升序排序
-
+    % 从离群值点中取频率小且幅值大者
     % 参数计算
-    omega = (2*pi)/period_samples;
-    frequencies_size = length(frequencies);
-    if frequencies(1) == 0
-        v_size = 2*frequencies_size-1;
-        harmonic_size = frequencies_size-1;
-        harmonic_frequencies = frequencies(2:end);
+    freq_size = size(ufreq_abs, 2);
+    selected_freq = zeros(1, freq_size);
+
+    % 按通道取离群值
+    outlier_thresold = max(100 * (1 - (peak_number/freq_size)) - 3, 3);  % -保证候选频率数量
+    peak_outlier = isoutlier(ufreq_abs, 'percentiles', [0 outlier_thresold], 2);  % 按通道选取
+    % 标记频率值点
+    freq_order = 0:freq_size-1;
+    freq_order = log10(freq_order + 1);
+    % 按通道标记相对大小
+    [~, maxval_order] = sort(ufreq_abs, 2, 'descend');  % maxval_order(i) = k: 表示第k个频率对应的幅值为第i大
+    [~, maxval_order] = sort(maxval_order, 2, 'ascend');  % maxval_order(i) = k: 表示第i个频率对应的幅值为第k大
+    maxval_order = min(maxval_order, [], 1);  % 取所有通道中的大小排名靠前者
+    
+    % 计算加权
+    weights = (peak_outlier > 0).*(freq_order + min(maxval_order, [], 1)) + ...  % 离群点中频率小且幅值大, 则权重小
+              (peak_outlier <= 0).*realmax;  % 不选择非离群点
+    
+    % 选择频率
+    % 默认选择零频率
+    selected_freq(1) = 1;
+    weights(1) = realmax;
+    % 低中高频均匀选择, 频段长度为对数递增, 每个频段选择权值最小者, 选不满则重复该过程
+    count_select = 1;
+    band_length = (log10(freq_size-1) - log10(1))/peak_number;
+    while count_select < peak_number
+        upperband = 0;
+        while upperband < freq_size-1
+            lowerband = upperband + 1;
+            upperband = min(max(ceil(10^(log10(upperband) + band_length)), lowerband + 1), freq_size-1);
+            [~, select_idx] = min(weights(lowerband:upperband));
+            if weights(select_idx + lowerband - 1) < realmax
+                selected_freq(select_idx + lowerband - 1) = 1;
+                weights(select_idx + lowerband - 1) = realmax;
+                count_select = count_select + 1;
+            end
+        end
+    end
+
+end
+
+function [mat_s, regressor] = invariantIniter(raw_freq_list)
+% S矩阵和回归元计算
+    
+    % 参数准备
+    freq_size = length(raw_freq_list);
+    raw_freq_list = unique(raw_freq_list, 'sorted');  % 默认升序排序
+
+    % 分离常量和谐波
+    if raw_freq_list(1) == 0
+        v_size = 2*freq_size-1;
+        harmonic_size = freq_size-1;
+        harmonic_list = raw_freq_list(2:end);
     else
-        v_size = 2*frequencies_size;
-        harmonic_size = frequencies_size;
-        harmonic_frequencies = frequencies;
+        v_size = 2*freq_size;
+        harmonic_size = freq_size;
+        harmonic_list = raw_freq_list;
     end
     % 初始化返回值
     mat_s = zeros(v_size, v_size);
+    freq_list = zeros(v_size, 1);
+    phi_list = zeros(v_size, 1);
 
-    % 矩阵计算
+    % 相角初始化
+    harmonic_phi = harmonicPhaseIniter(harmonic_size);
+
+    % 计算返回值
     % 直流部分(如有)
-    if frequencies(1) == 0
+    if raw_freq_list(1) == 0
         mat_s(1, 1) = 1;
-        location_base = 1;
+        freq_list(1) = 0;
+        phi_list(1) = pi/2;
+        loc_base = 1;
     else
-        location_base = 0;
+        loc_base = 0;
     end
     % 谐波部分
     for iter = 1:harmonic_size
-        omega_iter = omega*harmonic_frequencies(iter);
-        mat_s(location_base+1:location_base+2, location_base+1:location_base+2) = ...
-            [cos(omega_iter) sin(omega_iter); -sin(omega_iter) cos(omega_iter)];
-        location_base = location_base + 2;
+        iter_omega = harmonic_list(iter);
+        iter_phi = harmonic_phi(iter);
+        mat_s(loc_base+1:loc_base+2, loc_base+1:loc_base+2) = [cos(iter_omega) sin(iter_omega); -sin(iter_omega) cos(iter_omega)];
+        freq_list(loc_base+1:loc_base+2) = iter_omega*ones(2, 1);  % [omega omega]
+        phi_list(loc_base+1:loc_base+2) = iter_phi*ones(2, 1);  % [sin(phi) cos(phi)]
+        phi_list(loc_base+2) = phi_list(loc_base+2) + pi/2;  % cos(phi)
+        loc_base = loc_base + 2;
     end
+    % 初值
+    v0 = sin(phi_list);
+
+    % 准备返回值
+    regressor = struct('v0', v0, 'freq_list', freq_list, 'phi_list', phi_list);
     
+end
+
+function phi = harmonicPhaseIniter(harmonic_size)
+% 谐波相角初始化, 不需要成对, 每个值即对应一组S^delta矩阵
+
+    % 零初始化
+    phi = zeros(harmonic_size, 1);
+
 end

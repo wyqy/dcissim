@@ -1,5 +1,5 @@
-function out = genMultisine(generator_info, signal_size, signal_step)
-%GENMULTISINE multisine 信号生成
+function out = excitationMultisine(generator_info, signal_size, signal_step)
+%EXCITATIONMULTISINE multisine 信号生成
 % 给定频率范围和输入范围, 返回multisine
 % 输出size @ (size period_sample)
 

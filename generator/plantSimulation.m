@@ -5,21 +5,21 @@ function ret_struct = plantSimulation(varargin)
     parser = inputParser;
     % 输入定义
     addParameter(parser, 'type', 'fixed', @(i)(ischar(i)));
-    addParameter(parser, 'period_samples', 1, @(i)(isnumeric(i)&&isscalar(i)));
-    addParameter(parser, 'excitation', 1, @(i)(isnumeric(i)&&ismatrix(i)));
-    addParameter(parser, 'snr', nan, @(i)(isnumeric(i)&&isvector(i)));
     addParameter(parser, 'x_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
     addParameter(parser, 'y_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
     addParameter(parser, 'u_size', 1, @(i)(isnumeric(i)&&isscalar(i)));
+    addParameter(parser, 'samples_period', 1, @(i)(isnumeric(i)&&isscalar(i)));
+    addParameter(parser, 'excitation', 1, @(i)(isnumeric(i)&&ismatrix(i)));
+    addParameter(parser, 'snr', nan, @(i)(isnumeric(i)&&isvector(i)));
     % 输入提取
     parse(parser, varargin{:});
     type = parser.Results.type;  % 系统参数来源
-    period_sample = parser.Results.period_samples;  % 单周期采样点数
-    excitation = parser.Results.excitation;  % 激励信号
-    xyu_snr = parser.Results.snr;  % x,y,u聚合的信噪比
     x_size = parser.Results.x_size;  % x size
     y_size = parser.Results.y_size;  % y size
     u_size = parser.Results.u_size;  % u size
+    samples_period = parser.Results.samples_period;  % 单周期采样点数
+    excitation = parser.Results.excitation;  % 激励信号
+    xyu_snr = parser.Results.snr;  % x,y,u聚合的信噪比
 
     % 参数构造
     switch type
@@ -55,7 +55,7 @@ function ret_struct = plantSimulation(varargin)
             % 构造struct
             plant_info = struct('A', rand_sys.A, 'B', rand_sys.B, 'C', rand_sys.C, 'D', rand_sys.D, ...
                 'seed', seed, 'cov', covariance);
-        otherwise, plant_info = load('parameter\paraPlant.mat', 'para'); plant_info = plant_info.para;
+        otherwise, plant_info = load('parameter\paraPlant.mat', 'para'); plant_info = plant_info.para; seed = plant_info.seed;
     end
     % 参数计算
     x_size = size(plant_info.A, 1);
@@ -64,21 +64,44 @@ function ret_struct = plantSimulation(varargin)
 
     % 试生成仿真数据
     x_init_powertest = zeros(x_size, 1);
-    un_powertest = excitation(:, period_sample+1:2*period_sample);
-    noise_powertest = zeros(xyu_size, period_sample);
-    [xn_test, yn_test, un_test] = plantModel(plant_info, x_init_powertest, un_powertest, noise_powertest);
-    % 生成噪声信号
-    xyun_test = [xn_test; yn_test; un_test];
-    xyun_test = xyun_test(:, end-period_sample+1:end);
-    [noise, covariance] = genNoiser(plant_info, signal_sample, xyu_snr, xyun_test);
+    uk_powertest = excitation(:, 1:samples_period);
+    noise_powertest = zeros(xyu_size, samples_period);
+    [xk_test, yk_test, uk_test] = plantModel(plant_info, x_init_powertest, uk_powertest, noise_powertest);
+    xyuk_test = [xk_test; yk_test; uk_test];
+    xyuk_test = xyuk_test(:, end-samples_period+1:end);
+    % 修正协方差矩阵
+    covariance = genCovariance(plant_info, xyu_snr, xyuk_test);
+    nozero_locs = diag(covariance) ~= 0;
+    scale_transfer = zeros(xyu_size, xyu_size);
+    scale_transfer(nozero_locs, nozero_locs) = ctranspose(chol(covariance(nozero_locs, nozero_locs)));
+    
+    % 计算噪声信号
+    rs = RandStream.create('mrg32k3a', 'NumStreams', xyu_size, 'Seed', seed, 'CellOutput', true);
+    noise = zeros(xyu_size, signal_sample);
+    for iter = 1:xyu_size, noise(iter, :) = randn(rs{iter}, 1, signal_sample); end
+    noise = scale_transfer*noise;
+    % 计算等效Kalman增益
+    moment_xx = dlyap(plant_info.A, covariance(1:x_size, 1:x_size));
+    moment_yy = plant_info.C*moment_xx*plant_info.C.' + covariance(x_size+1:x_size+y_size, x_size+1:x_size+y_size);
+    moment_xy = plant_info.A*moment_xx*plant_info.C.' + covariance(1:x_size, x_size+1:x_size+y_size);
+    [~, kalman_gain, ~] = idare(plant_info.A.', -plant_info.C.', [], -moment_yy, moment_xy, []);
+    kalman_gain = -kalman_gain.';
+
     % 更新方差数据
     plant_info.cov = covariance;
+    plant_info.covariance_struct = struct('cov_all', covariance, 'kalman', kalman_gain, ...
+        'cov_xx', covariance(1:x_size, 1:x_size), ...
+        'cov_xy', covariance(1:x_size, x_size+1:x_size+y_size), ...
+        'cov_yy', covariance(x_size+1:x_size+y_size, x_size+1:x_size+y_size), ...
+        'cov_xu', covariance(1:x_size, x_size+y_size+1:end), ...
+        'cov_yu', covariance(x_size+1:x_size+y_size, x_size+y_size+1:end), ...
+        'cov_uu', covariance(x_size+y_size+1:end, x_size+y_size+1:end));
 
     % 生成仿真数据
     x_init = zeros(x_size, 1);  % 零初始化
-    [xn, yn, un] = plantModel(plant_info, x_init, excitation, noise);
+    [xk, yk, uk] = plantModel(plant_info, x_init, excitation, noise);
     % 返回值
-    ret_struct = struct('plant_info', plant_info, 'xn', xn, 'yn', yn, 'un', un, 'noise', noise, 'period_samples', period_sample);
+    ret_struct = struct('plant_info', plant_info, 'xk', xk, 'yk', yk, 'uk', uk, 'noise', noise, 'period_samples', samples_period);
 
 end
 
