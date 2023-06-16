@@ -44,17 +44,20 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     freq_bound = persistentExcitationCondition(x_size_upbound, u_size);
     switch freq_type
         case 'full'  % 全激励频率
-            freqs_list = 0:fix(samples_period/2);
+            freq_list = 0:fix(samples_period/2);
         case 'reduced'  % 部分激励频率
             uk_test = uk_test(:, samples_period+1:2*samples_period);  % 从第二个周期开始
-            freqs_list = reducedFreqList(uk_test, samples_period, freq_bound);
-        otherwise, freqs_list = 0;
+            freq_list = reducedFreqList(uk_test, samples_period, freq_bound);
+        otherwise, freq_list = 0;
     end
     % 转换为角频率
     omega = (2*pi)/samples_period;
-    freqs_list = omega.*freqs_list;
+    freq_list = omega.*freq_list;
     % 初始化临界系统
-    [mat_s, regressor] = invariantIniter(freqs_list);
+    [mat_s, regressor] = invariantIniter(freq_list);
+    % 初始化V矩阵
+    k = 0:samples_period-1;
+    mat_v = sin((regressor.freq_list*k) + regressor.phi_list);
     % 在线辨识 - 初始化参数
     if strcmp(algo_type, 'online') || strcmp(algo_type, 'online-test')
         v_size = size(mat_s, 1);
@@ -62,9 +65,9 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     end
 
     % 返回值
-    ret_struct = struct( 'mat_s', mat_s, 'regressor', regressor, 'prior', prior, ...
+    ret_struct = struct( 'mat_s', mat_s, 'mat_v', mat_v, 'regressor', regressor, 'prior', prior, ...
         'y_size', y_size, 'u_size', u_size, 'x_size_upbound', x_size_upbound, 'samples_period', samples_period,  ...
-        'algo_type', algo_type, 'freq_type', freq_type, 'xsize_est_type', xsize_est_type, 'aorder_est_type', aorder_est_type, 'als_est_type', als_est_type, ...
+        'algo_type', algo_type, 'xsize_est_type', xsize_est_type, 'aorder_est_type', aorder_est_type, 'als_est_type', als_est_type, ...
         'plant_d_type', plant_d_type, 'cov_cross_type', cov_cross_type);
 
 end
@@ -88,7 +91,8 @@ function freqs_list = reducedFreqList(uk_test, samples_period, freqs_bound)
     ufreq_abs = abs(ufreq(:, 1:harmonic_size));
 
     % 提取频率点
-    frequencies_selection = peakFinder(ufreq_abs, freqs_bound);
+    % frequencies_selection = peakFinder(ufreq_abs, freqs_bound);
+    frequencies_selection = peakFinderChirp(ufreq_abs, freqs_bound, samples_period);
     
     % plot
     % figure; plot(ufreq_abs); hold on; stem(max(ufreq_abs, [], 'all')*frequencies_selection);
@@ -98,6 +102,29 @@ function freqs_list = reducedFreqList(uk_test, samples_period, freqs_bound)
     % 加上零频率
     if freqs_list(1) ~= 0, freqs_list = [0 freqs_list]; end
 
+end
+
+function selected_freq = peakFinderChirp(ufreq_abs, peak_number, samples_period)
+    % 选频率的简化版本, 直接在扫频信号的有效频段内大致均匀选择
+
+    % 需要和chirp参数一致
+    fmax = fix(0.8*(samples_period/2));
+
+    % 参数计算
+    freq_size = size(ufreq_abs, 2);
+    selected_freq = zeros(1, freq_size);
+    
+    % 选择频率
+    % 默认选择零频率
+    selected_freq(1) = 1;
+    % 低中高频均匀线性选择
+    band_length = (fmax-1)/peak_number;
+    upperband = 0;
+    for iter_select = 1:peak_number
+        lowerband = upperband + 1;
+        upperband = min(max(ceil(upperband + band_length), lowerband), fmax-1);
+        selected_freq(floor((lowerband+upperband)/2)) = 1;
+    end
 end
 
 function selected_freq = peakFinder(ufreq_abs, peak_number)

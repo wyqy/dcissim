@@ -21,11 +21,11 @@ function [stable_rr, stable_zr1, moments, hnorms] = anaCov(covariance, ss_struct
     stable_zr1 = mat_a*stable_zz*(mat_c.') + cov_zr;
     % 零阶矩
     moments{1} = stable_rr;
-    [hnorms(1), ~] = anaNorm(stable_rr);
+    [hnorms(1), ~] = norm(stable_rr, 'fro');
     % 非零阶矩
     for iter = 1:out_size-1
         moments{iter+1} = mat_c*mpower(mat_a, iter-1)*stable_zr1;
-        [hnorms(iter+1), ~] = anaNorm(moments{iter+1});
+        [hnorms(iter+1), ~] = norm(moments{iter+1}, 'fro');
     end
 
 end

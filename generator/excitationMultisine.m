@@ -4,8 +4,8 @@ function out = excitationMultisine(generator_info, signal_size, signal_step)
 % 输出size @ (size period_sample)
 
     % 参数提取
-    continuous_frequencies = generator_info.multisine_freqs;
-    signal_interval = generator_info.multisine_usat;
+    continuous_frequencies = generator_info.freqs;
+    signal_interval = generator_info.usat;
     has_zero_frequency = sum(mean(signal_interval, 2).^2) ~= 0;
     % 参数修正
     if signal_size > size(signal_interval, 1), signal_interval = repmat(signal_interval, [ceil(signal_size/size(signal_interval, 1)), 1]); end

@@ -71,12 +71,12 @@ function fig = anaPlotBode(ss_cell, varargin)
     child_axes = findobj(fig.Children, 'type', 'Axes');
     for iter_axes = 1:length(child_axes)
         % 优化格式
-        anaPlotAux(child_axes(iter_axes), font_size, line_width);
+        plotAux(child_axes(iter_axes), font_size, line_width);
         % 寻找line
         child_line = findobj(child_axes(iter_axes), 'type', 'Line');
         for iter_line = 1:length(child_line)
             % 优化格式
-            anaPlotAux(child_line(iter_line), font_size, line_width);
+            plotAux(child_line(iter_line), font_size, line_width);
         end
         % 修改颜色(i dont know why)
         line_location = 1;
@@ -95,7 +95,7 @@ function fig = anaPlotBode(ss_cell, varargin)
     end
 
     % 在最后一个图上显示图例
-    anaPlotLegend(legend_text(1:model_size), font_size, line_width, 'southwest');
+    plotLegend(legend_text(1:model_size), font_size, line_width, 'southwest');
     
     % 保存图片
     % filepath = 'fig';

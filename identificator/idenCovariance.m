@@ -1,4 +1,4 @@
-function covariance_struct = idenCovariance(yk, uk, vk, uv_est, xv_est, v0, mat_a_est, mat_b_est, mat_c_est, mat_d_est, cov_est_type, cov_cross_type, cov_order, cov_order_type)
+function covariance_struct = idenCovariance(yk, uk, mat_v, para_est, als_est_type, cov_cross_type, cov_order, cov_order_type)
 %IDENCOVARIANCE 辨识方差参数
 % 针对存在互协方差与否提供不同的估计
 % 存在互协方差: 返回cov_innovation_all (zrt), cov_innovation_kalman
@@ -6,20 +6,26 @@ function covariance_struct = idenCovariance(yk, uk, vk, uv_est, xv_est, v0, mat_
 
     % 计算各阶矩
     % 参数计算
-    x_size = size(mat_a_est, 1); y_size = size(yk, 1); u_size = size(uk, 1);
-    sample_size = size(yk, 2);
-    % 使用仿真的方式计算噪声
-    model_est = struct('A', mat_a_est, 'B', mat_b_est, 'C', mat_c_est, 'D', mat_d_est);
-    ut_est = uv_est*vk;
-    % 状态方程噪声
-    x0_est = xv_est*v0;
-    [~, yt_est, ~] = plantModel(model_est, x0_est, uk, zeros(x_size+y_size+u_size, sample_size));
+    x_size = size(para_est.A, 1); y_size = size(yk, 1); u_size = size(uk, 1);
+    N = size(yk, 2); T = size(mat_v, 2);
+
+    % 激励计算
+    vk = repmat(mat_v, [1, floor(N/T)]);
+    % 输入激励
+    ut_est = para_est.U*vk;
+    % 输出激励
+    % 1. 状态方程噪声
+    % x0_est = para_est.X*para_est.v0;
+    % [~, yt_est, ~] = plantModel(para_est, x0_est, uk, zeros(x_size+y_size+u_size, sample_size));
+    % 2. 直接计算
+    yt_est = para_est.Y*vk;
+    % 误差计算
     rk = yk - yt_est;
     tk = uk - ut_est;
 
     % 阶数估算
     % 估算阶数上限, 按矩阵谱半径估计
-    test_order_max = ceil(log(1e-5)/log(max(abs(eig(mat_a_est)))));
+    test_order_max = ceil(log(1e-5)/log(max(abs(eig(para_est.A)))));
     test_rr_moment_norm = zeros(test_order_max+1, 1);
     % 询问或者直接估计/固定值
     switch cov_order_type
@@ -61,19 +67,19 @@ function covariance_struct = idenCovariance(yk, uk, vk, uv_est, xv_est, v0, mat_
     switch cov_cross_type
         case 'valid'
             % 估计名义协方差矩阵(innovation form)
-            [inno_zr, inno_zrt, kalman_gain] = innovationEstimation(moment_rr_est, moment_rt_est, moment_tt_est, mat_a_est, mat_c_est);
+            [inno_zr, inno_zrt, kalman_gain] = innovationEstimation(moment_rr_est, moment_rt_est, moment_tt_est, para_est.A, para_est.C);
             % 参数处理
             cov_zrt_1 = inno_zrt(1:x_size+y_size, :);
             cov_zrt_2 = inno_zrt(x_size+y_size+1:end, :);
             cov_all = [inno_zr cov_zrt_1; cov_zrt_1.' cov_zrt_2];
         case 'null'
             % 估计zr的协方差矩阵(real form)
-            switch cov_est_type
-                case 'simple', cov_zr = zrRealMomentEstimation_nocross_simple(moment_rr_est, mat_a_est, mat_c_est);
-                case 'classical', cov_zr = zrRealMomentEstimation_nocross_classical(rk, moment_order, mat_a_est, mat_c_est);
+            switch als_est_type
+                case 'simple', cov_zr = zrRealMomentEstimation_nocross_simple(moment_rr_est, para_est.A, para_est.C);
+                case 'classical', cov_zr = zrRealMomentEstimation_nocross_classical(rk, moment_order, para_est.A, para_est.C);
             end
             % 估计zrt的协方差矩阵(real form)
-            cov_zrt_2 = zrtRealMomentEstimation_nocross(moment_rt_est, moment_tt_est, mat_a_est, mat_c_est);
+            cov_zrt_2 = zrtRealMomentEstimation_nocross(moment_rt_est, moment_tt_est, para_est.A, para_est.C);
             % 参数处理
             cov_zrt_2 = cov_zrt_2(x_size+y_size+1:end, :);
             cov_all = [cov_zr zeros(x_size+y_size, u_size); zeros(u_size, x_size+y_size) cov_zrt_2];
@@ -214,6 +220,17 @@ function cov_zr = zrRealMomentEstimation_nocross_simple(est_rr_moment, mat_a_sim
     % est_para_p = lsqminnorm(est_para_m, est_para_b);
     % est_mat_p = reshape(est_para_p, [x_size x_size]);
     % SDP估计
+    % cvx_begin sdp quiet;
+    %     variable est_mat_p(x_size, x_size) symmetric;
+    %     variable err_mat_m((order-1)*y_size*y_size, x_size*x_size)
+    %     variable err_vec_b((order-1)*y_size*y_size, 1)
+    %     minimize(norm([err_mat_m err_vec_b], "fro"))
+    %     subject to;
+    %         (est_para_m + err_mat_m) * vec(est_mat_p) == est_para_b + err_vec_b;
+    %         est_mat_p == semidefinite(x_size);
+    %         est_rr0 - mat_c_sim * est_mat_p * mat_c_sim.' == semidefinite(y_size);
+    %         est_mat_p - mat_a_sim * est_mat_p * mat_a_sim.' == semidefinite(x_size);
+    % cvx_end;
     cvx_begin sdp quiet;
         variable est_mat_p(x_size, x_size) symmetric;
         minimize(norm(est_para_m * vec(est_mat_p) - est_para_b)); %, Inf));
@@ -308,12 +325,12 @@ function cov_zr = zrRealMomentEstimation_nocross_classical(rk, order, mat_a_est,
 
 end
 
-function cov_zrt = zrtRealMomentEstimation_nocross(~, est_tt_moment, mat_a_sim, mat_c_sim)
+function cov_zrt = zrtRealMomentEstimation_nocross(~, est_tt_moment, mat_a_est, mat_c_est)
 % 输入协方差 - 不存在互协方差
 % 直接得到
     % 参数计算
-    w_size = size(mat_a_sim, 1);
-    r_size = size(mat_c_sim, 1);
+    w_size = size(mat_a_est, 1);
+    r_size = size(mat_c_est, 1);
     t_size = size(est_tt_moment, 1);
     
     % 不估计wt和rt

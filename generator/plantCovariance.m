@@ -1,5 +1,5 @@
-function ret_covariance = genCovariance(plant_info, xyu_snr, xyuk)
-%GENCOVARIANCE 根据返回满足指定信噪比的协方差矩阵
+function ret_covariance = plantCovariance(plant_info, xyu_snr, xyuk)
+%PLANTCOVARIANCE 根据返回满足指定信噪比的协方差矩阵
     % 参数提取
     covariance = plant_info.cov;
 

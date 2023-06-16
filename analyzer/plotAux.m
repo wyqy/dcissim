@@ -1,5 +1,5 @@
-function anaPlotAux(obj, font_size, line_width)
-%ANAPLOTAUX 修改axis的格式
+function plotAux(obj, font_size, line_width)
+%PLOTAUX 修改axis的格式
 
     % 常规美化
     if isgraphics(obj, 'Axes')

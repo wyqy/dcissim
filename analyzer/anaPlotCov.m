@@ -25,18 +25,18 @@ function fig = anaPlotCov(cov_norm)
     child_axes = findobj(fig.Children, 'type', 'Axes');
     for iter_axes = 1:length(child_axes)
         % 优化格式
-        anaPlotAux(child_axes(iter_axes), font_size, line_width);
+        plotAux(child_axes(iter_axes), font_size, line_width);
         % 寻找line
         child_line = findobj(child_axes(iter_axes), 'type', 'Line');
         for iter_line = 1:length(child_line)
-            anaPlotAux(child_line(iter_line), font_size, line_width);
+            plotAux(child_line(iter_line), font_size, line_width);
         end
     end
 
     % 显示标签
-    anaPlotLabel('Lag of \color[rgb]{1,1,1} o \color[rgb]{.3,.3,.3} {\Xi}_{rr}^{i}', 'H_{2} Norm', font_size);
+    plotLabel('Lag of \color[rgb]{1,1,1} o \color[rgb]{.3,.3,.3} {\Xi}_{rr}^{i}', 'H_{2} Norm', font_size);
     % 显示图例
-    anaPlotLegend(legend_text(1:data_size), font_size, line_width, 'north');
+    plotLegend(legend_text(1:data_size), font_size, line_width, 'north');
 
     % 保存图片
     % filepath = 'fig';

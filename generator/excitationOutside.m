@@ -1,14 +1,14 @@
-function out = excitationOutside(generator_info, period_sample, signal_size, signal_step)
+function out = excitationOutside(generator_info, samples_period, signal_size, signal_step)
 %EXCITATIONOUTSIDE outside 信号生成
 % 给定外部信号, 返回[0, N-1]下的截断信号
 % 为减少不同周期间的冲激, 逐元素减去y = (sig(N-1)-sig(0))/(N-1) * n的值
 % 输出size @ (size period_sample)
 
     % 参数提取
-    source_path = generator_info.outside_source;
-    source_name = generator_info.outside_name;
-    source_fsrate_name = generator_info.outside_fs_name;
-    source_offest = generator_info.outside_offest;
+    source_path = generator_info.source;
+    source_name = generator_info.name;
+    source_fsrate_name = generator_info.fs_name;
+    source_offest = generator_info.offest;
     source_file = load(source_path, source_name, source_fsrate_name);
     source_signal = source_file.(source_name);
     source_fsrate = source_file.(source_fsrate_name);
@@ -24,12 +24,12 @@ function out = excitationOutside(generator_info, period_sample, signal_size, sig
     source_offest = round(size(source_signal, 2)*source_offest);
     
     % 生成信号 (一个周期), 忽略采样时间
-    k = 0:period_sample-1;
-    out = zeros(signal_size, period_sample);
+    k = 0:samples_period-1;
+    out = zeros(signal_size, samples_period);
     for iter_signal = 1:signal_size
-        out(iter_signal, :) = source_signal(iter_signal, source_offest+1:source_offest+period_sample);
+        out(iter_signal, :) = source_signal(iter_signal, source_offest+1:source_offest+samples_period);
         % 修正起终点
-        out_fix_k = (out(iter_signal, period_sample)-out(iter_signal, 1))/(period_sample-1);
+        out_fix_k = (out(iter_signal, samples_period)-out(iter_signal, 1))/(samples_period-1);
         out(iter_signal, :) = out(iter_signal, :) - out_fix_k.*k;
     end
 
