@@ -24,7 +24,7 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     y_size = parser.Results.ysize;  % 输出信号维数
     u_size = parser.Results.usize;  % 输出信号维数
     x_size_upbound = parser.Results.xsize_upbound;  % 状态变量上界
-    samples_period = parser.Results.samples_period;  % 单周期采样点数
+    T = parser.Results.samples_period;  % 单周期采样点数
     
     algo_type = parser.Results.isstep;  % 离线/在线运行
     freq_type = parser.Results.use_freq;  % ISIM激励方式
@@ -33,31 +33,38 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     als_est_type = parser.Results.est_cov;  % 方差估计方法
 
     plant_d_type = parser.Results.plant_d;  % D矩阵是否为零(是否直通)
-    cov_cross_type = parser.Results.cov_cross;  % 是否具有协方差
+    % cov_cross_type = parser.Results.cov_cross;  % 是否具有协方差
     prior = parser.Results.prior;  % 系统阶数和相关函数计算量的先验值
     
-
-    % 运行时准备
     % 清除临时存储
     clear idenISIM idenDCISSIMRunner
+
     % 准备辨识频率
     freq_bound = persistentExcitationCondition(x_size_upbound, u_size);
     switch freq_type
         case 'full'  % 全激励频率
-            freq_list = 0:fix(samples_period/2);
+            freq_list = 0:floor((T)/2);
         case 'reduced'  % 部分激励频率
-            uk_test = uk_test(:, samples_period+1:2*samples_period);  % 从第二个周期开始
-            freq_list = reducedFreqList(uk_test, samples_period, freq_bound);
+            uk_test = uk_test(:, T+1:2*T);  % 从第二个周期开始
+            freq_list = reducedFreqList(uk_test, T, freq_bound);
         otherwise, freq_list = 0;
     end
     % 转换为角频率
-    omega = (2*pi)/samples_period;
+    omega = (2*pi)/T;
     freq_list = omega.*freq_list;
     % 初始化临界系统
-    [mat_s, regressor] = invariantIniter(freq_list);
+    [mat_s, regressor] = invariantIniter(freq_list, T);
     % 初始化V矩阵
-    k = 0:samples_period-1;
+    k = 0:T-1;
     mat_v = sin((regressor.freq_list*k) + regressor.phi_list);
+
+    % refine
+    if (mod(T, 2) == 0 && regressor.freq_list(end) == omega*floor((T)/2))
+        mat_s = mat_s(1:end-2, 1:end-2);
+        mat_v = mat_v([1:end-2 end], :);
+        regressor.v0 = regressor.v0([1:end-2 end]);
+    end
+
     % 在线辨识 - 初始化参数
     if strcmp(algo_type, 'online') || strcmp(algo_type, 'online-test')
         v_size = size(mat_s, 1);
@@ -66,9 +73,9 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
 
     % 返回值
     ret_struct = struct( 'mat_s', mat_s, 'mat_v', mat_v, 'regressor', regressor, 'prior', prior, ...
-        'y_size', y_size, 'u_size', u_size, 'x_size_upbound', x_size_upbound, 'samples_period', samples_period,  ...
+        'y_size', y_size, 'u_size', u_size, 'x_size_upbound', x_size_upbound, 'T', T,  ...
         'algo_type', algo_type, 'xsize_est_type', xsize_est_type, 'aorder_est_type', aorder_est_type, 'als_est_type', als_est_type, ...
-        'plant_d_type', plant_d_type, 'cov_cross_type', cov_cross_type);
+        'plant_d_type', plant_d_type); % , 'cov_cross_type', cov_cross_type);
 
 end
 
@@ -83,7 +90,7 @@ function freqs_list = reducedFreqList(uk_test, samples_period, freqs_bound)
 % 最后总是加上零频率
 
     % 参数计算
-    harmonic_size = fix(samples_period/2)+1;  % 频率上限
+    harmonic_size = floor((samples_period)/2)+1;  % 频率上限
     freqs_bound = min(round(freqs_bound*3), harmonic_size);  % 升维度, 3为经验参数
 
     % FFT
@@ -172,8 +179,9 @@ function selected_freq = peakFinder(ufreq_abs, peak_number)
 
 end
 
-function [mat_s, regressor] = invariantIniter(raw_freq_list)
+function [mat_s, regressor] = invariantIniter(raw_freq_list, T)
 % S矩阵和回归元计算
+% 奇数周期和偶数周期不同!
     
     % 参数准备
     freq_size = length(raw_freq_list);
@@ -189,20 +197,25 @@ function [mat_s, regressor] = invariantIniter(raw_freq_list)
         harmonic_size = freq_size;
         harmonic_list = raw_freq_list;
     end
+
     % 初始化返回值
     mat_s = zeros(v_size, v_size);
     freq_list = zeros(v_size, 1);
     phi_list = zeros(v_size, 1);
-
-    % 相角初始化
-    harmonic_phi = harmonicPhaseIniter(harmonic_size);
+    
+    
+    % 谐波相角初始化, 每个值即对应一组S^delta矩阵
+    harmonic_phi = zeros(harmonic_size, 1);  % 零初始化
+    if (mod(T, 2) == 0 && raw_freq_list(end) == (2*pi)/T*floor((T)/2))
+        harmonic_phi(end) = pi/4;  % 保证可归一化
+    end
 
     % 计算返回值
     % 直流部分(如有)
     if raw_freq_list(1) == 0
         mat_s(1, 1) = 1;
         freq_list(1) = 0;
-        phi_list(1) = pi/2;
+        phi_list(1) = pi/4;   % 直流需要1/sqrt(2)初始化
         loc_base = 1;
     else
         loc_base = 0;
@@ -225,10 +238,3 @@ function [mat_s, regressor] = invariantIniter(raw_freq_list)
     
 end
 
-function phi = harmonicPhaseIniter(harmonic_size)
-% 谐波相角初始化, 不需要成对, 每个值即对应一组S^delta矩阵
-
-    % 零初始化
-    phi = zeros(harmonic_size, 1);
-
-end

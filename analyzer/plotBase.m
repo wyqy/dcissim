@@ -1,5 +1,5 @@
-function anaPlot(data_t, data_ori, data_ind, titletext, plottype)
-%ANAPLOT 绘制MIMO系统的数据图
+function plotBase(data_t, data_ori, data_ind, titletext, plottype)
+%PLOTBASE 绘制MIMO系统的数据图
 % data_ori和data_ind的格式: {data_1, ... data_n}, 其中每个data_i @ (samples, sizes)
 % 则结果一共有n行, sizes列.
     

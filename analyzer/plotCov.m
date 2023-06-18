@@ -1,5 +1,5 @@
-function fig = anaPlotCov(cov_norm)
-%ANASEMILOGX 绘制方差范数对比图 - 使用半对数坐标系
+function fig = plotCov(cov_norm)
+%PLOTCOV 绘制方差范数对比图 - 使用半对数坐标系
 
     % 参数计算
     data_size = size(cov_norm, 1);

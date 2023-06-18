@@ -1,4 +1,4 @@
-function [yv_est, uv_est] = idenISIM(yk, uk, v, T, isim_lsq_type)
+function [yv_est, uv_est] = idenISIM(yk, uk, mat_v, T, isim_lsq_type)
 % IDENISIM 辨识U(v)和Y(v)矩阵
 
     % recursive变量数值存储在这里
@@ -10,7 +10,7 @@ function [yv_est, uv_est] = idenISIM(yk, uk, v, T, isim_lsq_type)
             % 参数计算
             y_size = size(yk, 1);
             u_size = size(uk, 1);
-            v_size = size(v, 1);
+            v_size = size(mat_v, 1);
             N = size(yk, 2);
             
             % 输入准备
@@ -19,10 +19,10 @@ function [yv_est, uv_est] = idenISIM(yk, uk, v, T, isim_lsq_type)
             yuk = [yk uk];
 
             % V矩阵构造
-            v = repmat(v, [1, floor(N/T)]);
+            mat_v = repmat(mat_v, [1, floor(N/T)]);
 
             % 直接乘法
-            yuv_est = (2/(floor(N/T)*T)) .* v * yuk;
+            yuv_est = (2/(floor(N/T)*T)) .* mat_v * yuk;
 
             % 返回值
             yuv_est = yuv_est.';
@@ -35,7 +35,7 @@ function [yv_est, uv_est] = idenISIM(yk, uk, v, T, isim_lsq_type)
                 % 参数计算
                 y_size = size(yk, 1);
                 u_size = size(uk, 1);
-                v_size = size(v, 1);
+                v_size = size(mat_v, 1);
 
                 % 初始化
                 mat_w = zeros(v_size, y_size + u_size);
@@ -48,8 +48,9 @@ function [yv_est, uv_est] = idenISIM(yk, uk, v, T, isim_lsq_type)
             else
                 % 开始迭代
                 k = k + 1;
-                mat_w = mat_w + v*[yk.' uk.'];
+                mat_w = mat_w + mat_v(:, k)*[yk.' uk.'];
                 if mod(k, T) == 0
+                    k = 0;
                     t = t + 1;
                     mat_w = (2/T).*mat_w;
                     mat_r = ((t-1)/t).*mat_r + (1/t).*mat_w;

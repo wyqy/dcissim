@@ -1,5 +1,5 @@
-function fig = anaPlotBode(ss_cell, varargin)
-%ANABODE 绘制Bode图
+function fig = plotBode(ss_cell, varargin)
+%PLOTBODE 绘制Bode图
     
     % 输入定义
     parser = inputParser;

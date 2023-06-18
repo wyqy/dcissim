@@ -1,5 +1,5 @@
-function fig = anaPlotHistogram(cov_errors)
-%ANAPLOTHISTOGRAM 绘制(对数的多重)直方图
+function fig = plotHistogram(cov_errors)
+%PLOTHISTOGRAM 绘制(对数的多重)直方图
 
     % 参数计算
     data_size = size(cov_errors, 1);

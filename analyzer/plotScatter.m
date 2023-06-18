@@ -1,5 +1,5 @@
-function fig = anaPlotScatter(source_data)
-%ANAPLOTSCATTER 绘制2d / 3d 误差分布图
+function fig = plotScatter(source_data)
+%PLOTSCATTER 绘制2d / 3d 误差分布图
 % 数据维度(data_dim, 2/3, sample_number)
 
     % 参数计算

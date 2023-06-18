@@ -1,5 +1,5 @@
-function fig = anaPlotRecursive(cov_norm, norm_period)
-%ANAPLOTRECURSIVE 绘制迭代的范数变换图, 没有标记点
+function fig = plotRecursive(cov_norm, norm_period)
+%PLOTRECURSIVE 绘制迭代的范数变换图, 没有标记点
 
     % 参数计算
     data_size = size(cov_norm, 1);
