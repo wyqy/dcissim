@@ -18,6 +18,8 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     addParameter(parser, 'plant_d', 'null', @(i)(ischar(i)));
     addParameter(parser, 'cov_cross', 'null', @(i)(ischar(i)));
     addParameter(parser, 'prior', struct('xsize', 1, 'aorder', 1), @(i)(isstruct(i)));
+
+    addParameter(parser, 'hop_length', 1, @(i)(isnumeric(i)&&isscalar(i)));
     
     % 输入提取
     parse(parser, varargin{:});
@@ -35,6 +37,8 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     plant_d_type = parser.Results.plant_d;  % D矩阵是否为零(是否直通)
     % cov_cross_type = parser.Results.cov_cross;  % 是否具有协方差
     prior = parser.Results.prior;  % 系统阶数和相关函数计算量的先验值
+
+    hop_length = parser.Results.hop_length;  % 对于在线辨识, 每个hop_length才进行一次SIM, 节约时间
     
     % 清除临时存储
     clear idenISIM idenDCISSIMRunner
@@ -67,15 +71,14 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
 
     % 在线辨识 - 初始化参数
     if strcmp(algo_type, 'online') || strcmp(algo_type, 'online-test')
-        v_size = size(mat_s, 1);
-        idenISIM(zeros(y_size, 1), zeros(u_size, 1), zeros(v_size, 1), 'recursive');
+        idenISIM(zeros(y_size, 1), zeros(u_size, 1), mat_v, T, 'recursive');
     end
 
     % 返回值
     ret_struct = struct( 'mat_s', mat_s, 'mat_v', mat_v, 'regressor', regressor, 'prior', prior, ...
         'y_size', y_size, 'u_size', u_size, 'x_size_upbound', x_size_upbound, 'T', T,  ...
         'algo_type', algo_type, 'xsize_est_type', xsize_est_type, 'aorder_est_type', aorder_est_type, 'als_est_type', als_est_type, ...
-        'plant_d_type', plant_d_type); % , 'cov_cross_type', cov_cross_type);
+        'plant_d_type', plant_d_type, 'hop_length', hop_length); % , 'cov_cross_type', cov_cross_type);
 
 end
 

@@ -13,7 +13,7 @@ function [err_ww, err_vv, err_tt, ret_cov] = errCovariance(sys_original, sys_com
     % 计算err_ww (相似变化2 - 求解优化问题)
     cov_ww_original = sys_original.cov(1:x_size, 1:x_size);
     cov_ww_compared = sys_compared.cov(1:x_size, 1:x_size);
-    opt_set = optimoptions('fminunc', 'Algorithm', 'trust-region', 'SpecifyObjectiveGradient', true);
+    opt_set = optimoptions('fminunc', 'Display', 'none', 'Algorithm', 'trust-region', 'SpecifyObjectiveGradient', true);
     [kopt, err_ww] = fminunc(@optfunc, ones(x_size, 1), opt_set);
     function [fx, jacob] = optfunc(k)
         kmat = diag(k, 0);

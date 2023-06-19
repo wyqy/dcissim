@@ -33,6 +33,8 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yk, uk)
     plant_d_type = iden_struct.plant_d_type;
     % cov_cross_type = iden_struct.cov_cross_type;
 
+    hop_length = iden_struct.hop_length;
+
     % 初始化参数
     if isempty(is_inited)
         v_size = size(mat_s, 1);
@@ -63,6 +65,9 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yk, uk)
             if (mod(T, 2) == 0 && regressor.freq_list(end) == (2*pi/T)*floor((T)/2))
                 yv_refine_est = yv_est(:, 1:end-1);
                 uv_refine_est = uv_est(:, 1:end-1);
+            else
+                yv_refine_est = yv_est;
+                uv_refine_est = uv_est;
             end
             [mat_a_est, mat_c_est, x_size_est] = idenACN(yv_refine_est, uv_refine_est, mat_s, x_size_upbound, x_size_prior, xsize_est_type);  % 询问阶数
             [mat_b_est, mat_d_est, xv_est] = idenBDX(yv_refine_est, uv_refine_est, mat_s, mat_a_est, mat_c_est, x_size_est, plant_d_type);
@@ -76,17 +81,21 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yk, uk)
             k = k + 1;
             % ISIM辨识
             [yv_est, uv_est] = idenISIM(yk, uk, mat_v, T, 'recursive');
-            % 整数周期
-            if mod(k, T) == 0
+            % 每隔hop_length个周期, 节约时间
+            if (mod(k, hop_length) == 1)
                 % SIM辨识
                 if (mod(T, 2) == 0 && regressor.freq_list(end) == (2*pi/T)*floor((T)/2))
                     yv_refine_est = yv_est(:, 1:end-1);
                     uv_refine_est = uv_est(:, 1:end-1);
+                else
+                    yv_refine_est = yv_est;
+                    uv_refine_est = uv_est;
                 end
                 [mat_a_est, mat_c_est, x_size_est] = idenACN(yv_refine_est, uv_refine_est, mat_s, x_size_upbound, x_size_prior, xsize_est_type);
                 [mat_b_est, mat_d_est, xv_est] = idenBDX(yv_refine_est, uv_refine_est, mat_s, mat_a_est, mat_c_est, x_size_est, plant_d_type);
                 % 无方差辨识
             end
+            
     end
     
     % 整合方差矩阵
@@ -95,7 +104,9 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yk, uk)
     
     % 返回值
     % 构造状态空间
-    ret_sys = idss(mat_a_est, mat_b_est, mat_c_est, mat_d_est);  % 默认即为离散
+    if (rank(mat_a_est) < x_size_est), ret_sys = 0;
+    else, ret_sys = idss(mat_a_est, mat_b_est, mat_c_est, mat_d_est); end  % 默认即为离散
+    % 返回
     ret_struct = struct('ss', ret_sys, 'v0', v0, 'freqs', freq_list, 'X', xv_est, 'Y', yv_est, 'U', uv_est, ...
         'x_size', x_size_est, 'A', mat_a_est, 'B', mat_b_est, 'C', mat_c_est, 'D', mat_d_est, ...
         'cov', cov_est, 'noise_para', noise_para_est);
