@@ -12,17 +12,22 @@ function [yv_est, uv_est] = idenISIM(yk, uk, mat_v, T, isim_lsq_type)
             u_size = size(uk, 1);
             v_size = size(mat_v, 1);
             N = size(yk, 2);
+            periods = floor(N/T);
             
             % 输入准备
             yk = yk.';
             uk = uk.';
+            % 按周期分块相加求和
             yuk = [yk uk];
+            yuk = yuk(1:periods*T, :);
+            yuk = reshape(yuk, [T, periods, y_size+u_size]);
+            yuk = squeeze(sum(yuk, 2));
+            % 乘法
+            yuv_est = (2/(periods*T)) .* mat_v * yuk;
 
-            % V矩阵构造
-            mat_v = repmat(mat_v, [1, floor(N/T)]);
-
-            % 直接乘法
-            yuv_est = (2/(floor(N/T)*T)) .* mat_v * yuk;
+            % yuk1 = [yk uk];
+            % mat_v1 = repmat(mat_v, [1, floor(N/T)]);
+            % yuv_est1 = (2/(periods*T)) .* mat_v1 * yuk1;
 
             % 返回值
             yuv_est = yuv_est.';

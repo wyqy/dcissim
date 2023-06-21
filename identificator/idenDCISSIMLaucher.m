@@ -57,7 +57,7 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     omega = (2*pi)/T;
     freq_list = omega.*freq_list;
     % 初始化临界系统
-    [mat_s, regressor] = invariantIniter(freq_list, T);
+    [mat_s, eig_mat, eig_vec, regressor] = invariantIniter(freq_list, T);
     % 初始化V矩阵
     k = 0:T-1;
     mat_v = sin((regressor.freq_list*k) + regressor.phi_list);
@@ -66,6 +66,8 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     if (mod(T, 2) == 0 && regressor.freq_list(end) == omega*floor((T)/2))
         mat_s = mat_s(1:end-2, 1:end-2);
         mat_v = mat_v([1:end-2 end], :);
+        eig_mat = eig_mat(1:end-2, 1:end-2);
+        eig_vec = eig_vec(1:end-2);
         regressor.v0 = regressor.v0([1:end-2 end]);
     end
 
@@ -75,7 +77,7 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     end
 
     % 返回值
-    ret_struct = struct( 'mat_s', mat_s, 'mat_v', mat_v, 'regressor', regressor, 'prior', prior, ...
+    ret_struct = struct( 'mat_s', mat_s, 'mat_v', mat_v, 'eig_mat', eig_mat, 'eig_vec', eig_vec, 'regressor', regressor, 'prior', prior, ...
         'y_size', y_size, 'u_size', u_size, 'x_size_upbound', x_size_upbound, 'T', T,  ...
         'algo_type', algo_type, 'xsize_est_type', xsize_est_type, 'aorder_est_type', aorder_est_type, 'als_est_type', als_est_type, ...
         'plant_d_type', plant_d_type, 'hop_length', hop_length); % , 'cov_cross_type', cov_cross_type);
@@ -182,15 +184,15 @@ function selected_freq = peakFinder(ufreq_abs, peak_number)
 
 end
 
-function [mat_s, regressor] = invariantIniter(raw_freq_list, T)
-% S矩阵和回归元计算
+function [mat_s, eig_mat, eig_vec, regressor] = invariantIniter(raw_freq_list, T)
+% S矩阵, 回归元和对角化矩阵计算
 % 奇数周期和偶数周期不同!
     
     % 参数准备
     freq_size = length(raw_freq_list);
     raw_freq_list = unique(raw_freq_list, 'sorted');  % 默认升序排序
 
-    % 分离常量和谐波
+    % 分离常量和谐波 & 
     if raw_freq_list(1) == 0
         v_size = 2*freq_size-1;
         harmonic_size = freq_size-1;
@@ -200,9 +202,10 @@ function [mat_s, regressor] = invariantIniter(raw_freq_list, T)
         harmonic_size = freq_size;
         harmonic_list = raw_freq_list;
     end
-
     % 初始化返回值
     mat_s = zeros(v_size, v_size);
+    eig_mat = zeros(v_size, v_size);
+    eig_vec = zeros(v_size, 1);
     freq_list = zeros(v_size, 1);
     phi_list = zeros(v_size, 1);
     
@@ -213,12 +216,15 @@ function [mat_s, regressor] = invariantIniter(raw_freq_list, T)
         harmonic_phi(end) = pi/4;  % 保证可归一化
     end
 
-    % 计算返回值
     % 直流部分(如有)
     if raw_freq_list(1) == 0
         mat_s(1, 1) = 1;
+        eig_mat(1, 1) = 1;
+        eig_vec(1) = 1;
+
         freq_list(1) = 0;
         phi_list(1) = pi/4;   % 直流需要1/sqrt(2)初始化
+        
         loc_base = 1;
     else
         loc_base = 0;
@@ -228,9 +234,13 @@ function [mat_s, regressor] = invariantIniter(raw_freq_list, T)
         iter_omega = harmonic_list(iter);
         iter_phi = harmonic_phi(iter);
         mat_s(loc_base+1:loc_base+2, loc_base+1:loc_base+2) = [cos(iter_omega) sin(iter_omega); -sin(iter_omega) cos(iter_omega)];
+        eig_mat(loc_base+1:loc_base+2, loc_base+1:loc_base+2) = [1i -1i; 1 1];
+        eig_vec(loc_base+1:loc_base+2) = [exp(-1i*iter_omega); exp(1i*iter_omega)];
+
         freq_list(loc_base+1:loc_base+2) = iter_omega*ones(2, 1);  % [omega omega]
         phi_list(loc_base+1:loc_base+2) = iter_phi*ones(2, 1);  % [sin(phi) cos(phi)]
         phi_list(loc_base+2) = phi_list(loc_base+2) + pi/2;  % cos(phi)
+
         loc_base = loc_base + 2;
     end
     % 初值

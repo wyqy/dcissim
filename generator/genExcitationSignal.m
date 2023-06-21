@@ -24,19 +24,16 @@ function ret_struct = genExcitationSignal(varargin)
     % 单周期信号生成
     switch type
         case 'multisine'
-            signal = excitationMultisine(struct('freqs', [0.1,0.3,0.5,0.7,0.9,1,3,5,7,9], 'usat', [10, 20]), ...
-                signal_size, signal_step);
+            signal = excitationMultisine(struct('freqs', [0.1,0.3,0.5,0.7,0.9,1,3,5,7,9], 'usat', [10, 20]), signal_size, signal_step);
         case 'chirp'
             signal = excitationChirp(struct('fmax_ratio', 0.8), samples_period, signal_size, signal_step);
         case 'function'
-            signal = excitationFunction(struct('expression', "sin(n)+n^2+n+3"), ...
-                samples_period, signal_size, signal_step);
+            signal = excitationFunction(struct('expression', "sin(n)+n^2+n+3"), samples_period, signal_size, signal_step);
         case 'outside'
             signal = excitationOutside(struct('source', 'parameter\source.mat', 'name', 'yt', 'fs_name', 'Fs', 'offest', 1/84.8), ...
                 samples_period, signal_size, signal_step);
         case 'random'
-            signal = excitationRandom(struct('mu', 10, 'covariance', 20), ...
-                samples_period, signal_size, signal_step);
+            signal = excitationRandom(struct('mu', 10, 'covariance', 20), samples_period, signal_size, signal_step);
         otherwise, signal = 0;
     end
     % 修正周期采样点数

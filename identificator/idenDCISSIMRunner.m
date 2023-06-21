@@ -11,6 +11,8 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yk, uk)
     % 提取参数
     mat_s = iden_struct.mat_s;
     mat_v = iden_struct.mat_v;  % 单周期内的v
+    eig_mat = iden_struct.eig_mat;
+    eig_vec = iden_struct.eig_vec;  % 对角化
     regressor = iden_struct.regressor;
     v0 = regressor.v0;
     freq_list = regressor.freq_list;
@@ -70,7 +72,7 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yk, uk)
                 uv_refine_est = uv_est;
             end
             [mat_a_est, mat_c_est, x_size_est] = idenACN(yv_refine_est, uv_refine_est, mat_s, x_size_upbound, x_size_prior, xsize_est_type);  % 询问阶数
-            [mat_b_est, mat_d_est, xv_est] = idenBDX(yv_refine_est, uv_refine_est, mat_s, mat_a_est, mat_c_est, x_size_est, plant_d_type);
+            [mat_b_est, mat_d_est, xv_est] = idenBDX(yv_refine_est, uv_refine_est, mat_s, eig_mat, eig_vec, mat_a_est, mat_c_est, x_size_est, plant_d_type);
             % 方差辨识
             if ~strcmp(als_est_type, 'none')
                 para_est = struct('Y', yv_est, 'U', uv_est, 'A', mat_a_est, 'B', mat_b_est, 'C', mat_c_est, 'D', mat_d_est);
@@ -92,7 +94,7 @@ function ret_struct = idenDCISSIMRunner(iden_struct, yk, uk)
                     uv_refine_est = uv_est;
                 end
                 [mat_a_est, mat_c_est, x_size_est] = idenACN(yv_refine_est, uv_refine_est, mat_s, x_size_upbound, x_size_prior, xsize_est_type);
-                [mat_b_est, mat_d_est, xv_est] = idenBDX(yv_refine_est, uv_refine_est, mat_s, mat_a_est, mat_c_est, x_size_est, plant_d_type);
+                [mat_b_est, mat_d_est, xv_est] = idenBDX(yv_refine_est, uv_refine_est, mat_s, eig_mat, eig_vec, mat_a_est, mat_c_est, x_size_est, plant_d_type);
                 % 无方差辨识
             end
             
