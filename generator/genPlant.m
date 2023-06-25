@@ -43,8 +43,8 @@ function plant_info = genPlant(varargin)
             is_feasible = false;
             while ~is_feasible
                 rand_sys = drss(x_size, y_size, u_size);
-                is_feasible = max(abs(eig(rand_sys.A, 'vector'))) <= 0.90 && ...
-                              min(abs(eig(rand_sys.A, 'vector'))) >= 0.20;  % 不可过大也不可过小
+                is_feasible = max(abs(eig(rand_sys.A, 'vector'))) <= 0.8 && ...
+                              min(abs(eig(rand_sys.A, 'vector'))) >= 0.2;  % 不可过大也不可过小
                 is_feasible = is_feasible && rank(obsv(rand_sys)) == x_size && ...
                                              rank(ctrb(rand_sys)) == x_size; % 可控可观
                 is_feasible = is_feasible && max(abs(zpk(rand_sys).Z{1})) < 1;  % 最小相位系统
@@ -52,7 +52,7 @@ function plant_info = genPlant(varargin)
                     is_cfullrank = rank(rand_sys.C) >= x_size;
                     is_feasible = is_feasible && is_cfullrank;
                 end
-
+                rand_sys.D = zeros(y_size, u_size);  % 非直通系统
             end
             % 随机生成协方差矩阵
             scale_cov = 5;

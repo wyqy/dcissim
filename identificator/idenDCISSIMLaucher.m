@@ -103,8 +103,8 @@ function freqs_list = reducedFreqList(uk_test, samples_period, freqs_bound)
     ufreq_abs = abs(ufreq(:, 1:harmonic_size));
 
     % 提取频率点
-    % frequencies_selection = peakFinder(ufreq_abs, freqs_bound);
-    frequencies_selection = peakFinderChirp(ufreq_abs, freqs_bound, samples_period);
+    frequencies_selection = peakFinder(ufreq_abs, freqs_bound);
+    % frequencies_selection = peakFinderChirp(ufreq_abs, freqs_bound, samples_period);
     
     % plot
     % figure; plot(ufreq_abs); hold on; stem(max(ufreq_abs, [], 'all')*frequencies_selection);
