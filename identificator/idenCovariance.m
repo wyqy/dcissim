@@ -1,4 +1,4 @@
-function covariance_struct = idenCovariance(yk, uk, mat_v, para_est, als_est_type, cov_order, cov_order_type)
+function covariance_struct = idenCovariance(yk, uk, T, para_est, als_est_type, cov_order, cov_order_type)
 %IDENCOVARIANCE 辨识方差参数
 % 针对存在互协方差与否提供不同的估计
 % 存在互协方差: 返回cov_innovation_all (zrt), cov_innovation_kalman
@@ -7,21 +7,7 @@ function covariance_struct = idenCovariance(yk, uk, mat_v, para_est, als_est_typ
     % 计算各阶矩
     % 参数计算
     x_size = size(para_est.A, 1); y_size = size(yk, 1); u_size = size(uk, 1);
-    N = size(yk, 2); T = size(mat_v, 2);
-
-    % 激励计算
-    vk = repmat(mat_v, [1, floor(N/T)]);
-    % 输入激励
-    ut_est = para_est.U*vk;
-    % 输出激励
-    % 1. 状态方程噪声
-    % [~, yt_est, ~] = plantModel(para_est, x0_est, uk, zeros(x_size+y_size+u_size, sample_size));
-    % 2. 直接计算
-    yt_est = para_est.Y*vk;
-    % 误差计算
-    rk = yk - yt_est;
-    tk = uk - ut_est;
-
+    N = size(yk, 2); P = floor(N/T);
     % 阶数估算
     % 估算阶数上限, 按矩阵谱半径估计
     test_order_max = ceil(log(1e-5)/log(max(abs(eig(para_est.A)))));
@@ -50,26 +36,49 @@ function covariance_struct = idenCovariance(yk, uk, mat_v, para_est, als_est_typ
         otherwise, moment_order = 1;
     end
 
-    % 各阶矩计算
-    % 准备
+    % 相关矩阵初始化
     moment_rr_est = cell(moment_order+1, 1);
-    moment_rt_est = cell(moment_order+1, 1);
-    % 计算
-    for iter_moment = 0:moment_order
-        moment_rr_est{iter_moment+1} = estimationCaller(rk, rk, iter_moment, 0);
-        moment_rt_est{iter_moment+1} = estimationCaller(rk, tk, iter_moment, 0);
-    end
-    moment_tt_est = estimationCaller(tk, tk, 0, 0);
+    % moment_rt_est = cell(moment_order+1, 1);
 
+    % % 时域噪声估计
+    % vk = repmat(para_est.mat_v, [1, floor(N/T)]);
+    % ut_est = para_est.U*vk;     tk = uk - ut_est;
+    % yt_est = para_est.Y*vk;     rk = yk - yt_est;
+    % % 时域矩估计
+    % for iter_moment = 0:moment_order
+    %     moment_rr_est{iter_moment+1} = estimationCaller(rk, rk, iter_moment, 0);
+    %     % moment_rt_est{iter_moment+1} = estimationCaller(rk, tk, iter_moment, 0);
+    % end
+    % moment_tt_est = estimationCaller(tk, tk, 0, 0);
+
+    % 频域噪声估计
+    yrw_est = fft(yk, N, 2);        utw_est = fft(uk, N, 2);
+    yw_est = zeros(y_size, N);      uw_est = zeros(u_size, N);
+    for iter_k = 0:T-1
+        yw_est(:, iter_k*P+1) = P .* para_est.Y(:, iter_k+1);
+        uw_est(:, iter_k*P+1) = P .* para_est.U(:, iter_k+1);
+    end
+    rw_est = yrw_est - yw_est;      tw_est = utw_est - uw_est;
+    % 频域矩估计
+    temp_mat = reshape(rw_est, [y_size 1 N]);
+    mat_rr_est = pagemtimes(temp_mat, 'none', temp_mat, 'ctranspose');
+    mat_zz_est = pagemtimes(tw_est, 'none', tw_est, 'ctranspose');
+    for iter_moment = 0:moment_order
+        moment_rr_est{iter_moment+1} = reshape(mat_rr_est(:, :, iter_moment+1)./(N-iter_moment), [y_size y_size]);
+    end
+    moment_tt_est = mat_zz_est ./ N;
 
     % 估计zr的协方差矩阵(real form)
     switch als_est_type
-        case 'simple', cov_zr = zrRealMomentEstimation_nocross_simple(moment_rr_est, para_est.A, para_est.C);
-        case 'classical', cov_zr = zrRealMomentEstimation_nocross_classical(rk, moment_order, para_est.A, para_est.C);
+        case 'simple'
+            cov_zr = zrRealMoment_nocross_simple(moment_rr_est, para_est.A, para_est.C);
+        case 'classical'
+            rk_est = ifft(rw_est, N, 2);
+            cov_zr = zrRealMoment_nocross_classical(rk_est, moment_order, para_est.A, para_est.C);
         otherwise, cov_zr = zeros(x_size+y_size);
     end
     % 估计zrt的协方差矩阵(real form)
-    cov_zrt_2 = zrtRealMomentEstimation_nocross(moment_rt_est, moment_tt_est, para_est.A, para_est.C);
+    cov_zrt_2 = zrtRealMoment_nocross(moment_tt_est, para_est.A, para_est.C);
     % 参数处理
     cov_zrt_2 = cov_zrt_2(x_size+y_size+1:end, :);
     cov_all = [cov_zr zeros(x_size+y_size, u_size); zeros(u_size, x_size+y_size) cov_zrt_2];
@@ -105,7 +114,7 @@ function moment_estimated = estimationCaller(an, bn, order, offset)
     moment_estimated = (1/(moment_estimation_samples-order-offset)).*(an(:, offset+order+1:end)*(bn(:, offset+1:end-order).'));
 end
 
-function cov_zr = zrRealMomentEstimation_nocross_simple(est_rr_moment, mat_a_sim, mat_c_sim)
+function cov_zr = zrRealMoment_nocross_simple(est_rr_moment, mat_a_sim, mat_c_sim)
 % 输出-状态协方差 - 不存在互协方差
 % 此处计算真实矩
 
@@ -154,7 +163,7 @@ function cov_zr = zrRealMomentEstimation_nocross_simple(est_rr_moment, mat_a_sim
 
 end
 
-function cov_zr = zrRealMomentEstimation_nocross_classical(rk, order, mat_a_est, mat_c_est) 
+function cov_zr = zrRealMoment_nocross_classical(rk, order, mat_a_est, mat_c_est) 
 % 输出-状态协方差 - 不存在互协方差
 % 进行状态估计
 
@@ -229,7 +238,7 @@ function cov_zr = zrRealMomentEstimation_nocross_classical(rk, order, mat_a_est,
 
 end
 
-function cov_zrt = zrtRealMomentEstimation_nocross(~, est_tt_moment, mat_a_est, mat_c_est)
+function cov_zrt = zrtRealMoment_nocross(est_tt_moment, mat_a_est, mat_c_est)
 % 输入协方差 - 不存在互协方差
 % 直接得到
     % 参数计算

@@ -33,9 +33,8 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     xsize_est_type = parser.Results.est_xsize;  % 状态变量估计方式
     aorder_est_type = parser.Results.est_aorder;  % 相关函数计算量估计方式
     als_est_type = parser.Results.est_cov;  % 方差估计方法
-
     plant_d_type = parser.Results.plant_d;  % D矩阵是否为零(是否直通)
-    % cov_cross_type = parser.Results.cov_cross;  % 是否具有协方差
+
     prior = parser.Results.prior;  % 系统阶数和相关函数计算量的先验值
 
     hop_length = parser.Results.hop_length;  % 对于在线辨识, 每个hop_length才进行一次SIM, 节约时间
@@ -62,13 +61,12 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     k = 0:T-1;
     mat_v = sin((regressor.freq_list*k) + regressor.phi_list);
 
-    % refine
-    if (mod(T, 2) == 0 && regressor.freq_list(end) == omega*floor((T)/2))
+    % 对于multiplication-based ISIM, SIM, 去掉非正定频率
+    if mod(T, 2) == 0 && regressor.freq_list(end) == omega*floor((T)/2)
         mat_s = mat_s(1:end-2, 1:end-2);
         mat_v = mat_v([1:end-2 end], :);
         eig_mat = eig_mat(1:end-2, 1:end-2);
         eig_vec = eig_vec(1:end-2);
-        regressor.v0 = regressor.v0([1:end-2 end]);
     end
 
     % 在线辨识 - 初始化参数
@@ -77,11 +75,10 @@ function ret_struct = idenDCISSIMLaucher(uk_test, varargin)
     end
 
     % 返回值
-    ret_struct = struct( 'mat_s', mat_s, 'mat_v', mat_v, 'eig_mat', eig_mat, 'eig_vec', eig_vec, 'regressor', regressor, 'prior', prior, ...
+    ret_struct = struct( 'mat_s', mat_s, 'mat_v', mat_v, 'eig_mat', eig_mat, 'eig_vec', eig_vec, 'regressor', regressor, ...
         'y_size', y_size, 'u_size', u_size, 'x_size_upbound', x_size_upbound, 'T', T,  ...
-        'algo_type', algo_type, 'xsize_est_type', xsize_est_type, 'aorder_est_type', aorder_est_type, 'als_est_type', als_est_type, ...
-        'plant_d_type', plant_d_type, 'hop_length', hop_length); % , 'cov_cross_type', cov_cross_type);
-
+        'algo_type', algo_type, 'xsize_est_type', xsize_est_type, 'aorder_est_type', aorder_est_type, 'als_est_type', als_est_type, 'plant_d_type', plant_d_type, ...
+        'prior', prior, 'hop_length', hop_length);
 end
 
 function freq_bound = persistentExcitationCondition(x_size_upbound, u_size)
@@ -95,7 +92,7 @@ function freqs_list = reducedFreqList(uk_test, samples_period, freqs_bound)
 % 最后总是加上零频率
 
     % 参数计算
-    harmonic_size = floor((samples_period)/2)+1;  % 频率上限
+    harmonic_size = floor((samples_period)/2);  % 谐波频率数量上限(不含DC), 包括最高频率
     freqs_bound = min(round(freqs_bound*3), harmonic_size);  % 升维度, 3为经验参数
 
     % FFT
@@ -103,45 +100,23 @@ function freqs_list = reducedFreqList(uk_test, samples_period, freqs_bound)
     ufreq_abs = abs(ufreq(:, 1:harmonic_size));
 
     % 提取频率点
-    frequencies_selection = peakFinder(ufreq_abs, freqs_bound);
-    % frequencies_selection = peakFinderChirp(ufreq_abs, freqs_bound, samples_period);
-    
+    switch 'general'
+        case 'general', frequencies_selection = selectHeuristically(ufreq_abs, freqs_bound);
+        case 'uniform', frequencies_selection = selectUniformly(ufreq_abs, freqs_bound, samples_period);
+    end
     % plot
     % figure; plot(ufreq_abs); hold on; stem(max(ufreq_abs, [], 'all')*frequencies_selection);
+
     % 返回值
-    freqs_list = 0:harmonic_size-1;
-    freqs_list = freqs_list(frequencies_selection == 1);
-    % 加上零频率
-    if freqs_list(1) ~= 0, freqs_list = [0 freqs_list]; end
+    freqs_list = 0:harmonic_size;  % 加上DC
+    freqs_list = freqs_list(frequencies_selection == 1);  % 不去掉最高频率, 由后面处理
+    if freqs_list(1) ~= 0, freqs_list = [0 freqs_list]; end  % 加上零频率
 
 end
 
-function selected_freq = peakFinderChirp(ufreq_abs, peak_number, samples_period)
-    % 选频率的简化版本, 直接在扫频信号的有效频段内大致均匀选择
+function selected_freq = selectHeuristically(ufreq_abs, peak_number)
+% 从离群值点中取频率小且幅值大者
 
-    % 需要和chirp参数一致
-    fmax = fix(0.8*(samples_period/2));
-
-    % 参数计算
-    freq_size = size(ufreq_abs, 2);
-    selected_freq = zeros(1, freq_size);
-    
-    % 选择频率
-    % 默认选择零频率
-    selected_freq(1) = 1;
-    % 低中高频均匀线性选择
-    band_length = (fmax-1)/peak_number;
-    upperband = 0;
-    for iter_select = 1:peak_number
-        lowerband = upperband + 1;
-        upperband = min(max(ceil(upperband + band_length), lowerband), fmax-1);
-        selected_freq(floor((lowerband+upperband)/2)) = 1;
-    end
-end
-
-function selected_freq = peakFinder(ufreq_abs, peak_number)
-
-    % 从离群值点中取频率小且幅值大者
     % 参数计算
     freq_size = size(ufreq_abs, 2);
     selected_freq = zeros(1, freq_size);
@@ -184,6 +159,29 @@ function selected_freq = peakFinder(ufreq_abs, peak_number)
 
 end
 
+function selected_freq = selectUniformly(ufreq_abs, peak_number, samples_period)
+% 选频率的简化版本, 直接在扫频信号的有效频段内大致均匀选择
+
+    % 需要和chirp参数一致
+    fmax = fix(0.8*(samples_period/2));
+
+    % 参数计算
+    freq_size = size(ufreq_abs, 2);
+    selected_freq = zeros(1, freq_size);
+    
+    % 选择频率
+    % 默认选择零频率
+    selected_freq(1) = 1;
+    % 低中高频均匀线性选择
+    band_length = (fmax-1)/peak_number;
+    upperband = 0;
+    for iter_select = 1:peak_number
+        lowerband = upperband + 1;
+        upperband = min(max(ceil(upperband + band_length), lowerband), fmax-1);
+        selected_freq(floor((lowerband+upperband)/2)) = 1;
+    end
+end
+
 function [mat_s, eig_mat, eig_vec, regressor] = invariantIniter(raw_freq_list, T)
 % S矩阵, 回归元和对角化矩阵计算
 % 奇数周期和偶数周期不同!
@@ -192,7 +190,7 @@ function [mat_s, eig_mat, eig_vec, regressor] = invariantIniter(raw_freq_list, T
     freq_size = length(raw_freq_list);
     raw_freq_list = unique(raw_freq_list, 'sorted');  % 默认升序排序
 
-    % 分离常量和谐波 & 
+    % 分离常量和谐波
     if raw_freq_list(1) == 0
         v_size = 2*freq_size-1;
         harmonic_size = freq_size-1;
@@ -213,7 +211,7 @@ function [mat_s, eig_mat, eig_vec, regressor] = invariantIniter(raw_freq_list, T
     % 谐波相角初始化, 每个值即对应一组S^delta矩阵
     harmonic_phi = zeros(harmonic_size, 1);  % 零初始化
     if (mod(T, 2) == 0 && raw_freq_list(end) == (2*pi)/T*floor((T)/2))
-        harmonic_phi(end) = pi/4;  % 保证可归一化
+        harmonic_phi(end) = pi/4;  % 对于偶数采样数和全频率, 保证可归一化
     end
 
     % 直流部分(如有)

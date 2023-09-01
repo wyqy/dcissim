@@ -14,7 +14,6 @@ function [mat_b_est, mat_d_est, xv_est] = idenBDX(yv_est, uv_est, mat_s, eig_mat
     y_isim_similar = yv_est * eig_mat;
     u_isim_similar = uv_est * eig_mat;
     
-
     % 计算参数矩阵
     loc_base = 0;
     if plant_d_type == 0  % 假定 D = 0
@@ -33,7 +32,8 @@ function [mat_b_est, mat_d_est, xv_est] = idenBDX(yv_est, uv_est, mat_s, eig_mat
     end
 
     % 计算最小二乘
-    retVec = pinv(mat_pinv) * reshape(y_isim_similar, [v_size*y_size 1]);
+    retVec = lsqminnorm(mat_pinv, reshape(y_isim_similar, [v_size*y_size 1]));
+    % retVec = pinv(mat_pinv) * reshape(y_isim_similar, [v_size*y_size 1]);
 
     % 还原结果为矩阵
     if plant_d_type == 0  % 假定 D = 0
