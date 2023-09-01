@@ -55,18 +55,18 @@ function covariance_struct = idenCovariance(yk, uk, T, para_est, als_est_type, c
     yrw_est = fft(yk, N, 2);        utw_est = fft(uk, N, 2);
     yw_est = zeros(y_size, N);      uw_est = zeros(u_size, N);
     for iter_k = 0:T-1
-        yw_est(:, iter_k*P+1) = P .* para_est.Y(:, iter_k+1);
-        uw_est(:, iter_k*P+1) = P .* para_est.U(:, iter_k+1);
+        yw_est(:, iter_k*P+1) = N .* para_est.Y(:, iter_k+1);
+        uw_est(:, iter_k*P+1) = N .* para_est.U(:, iter_k+1);
     end
     rw_est = yrw_est - yw_est;      tw_est = utw_est - uw_est;
     % 频域矩估计
     temp_mat = reshape(rw_est, [y_size 1 N]);
     mat_rr_est = pagemtimes(temp_mat, 'none', temp_mat, 'ctranspose');
-    mat_zz_est = pagemtimes(tw_est, 'none', tw_est, 'ctranspose');
+    mat_rr_est = ifft(mat_rr_est, N, 3);
     for iter_moment = 0:moment_order
-        moment_rr_est{iter_moment+1} = reshape(mat_rr_est(:, :, iter_moment+1)./(N-iter_moment), [y_size y_size]);
+        moment_rr_est{iter_moment+1} = reshape(real(mat_rr_est(:, :, iter_moment+1))./(N-iter_moment), [y_size y_size]);
     end
-    moment_tt_est = mat_zz_est ./ N;
+    moment_tt_est = real(pagemtimes(tw_est, 'none', tw_est, 'ctranspose')) ./ (N^2);
 
     % 估计zr的协方差矩阵(real form)
     switch als_est_type
@@ -152,6 +152,8 @@ function cov_zr = zrRealMoment_nocross_simple(est_rr_moment, mat_a_sim, mat_c_si
             est_rr0 - mat_c_sim * est_mat_p * mat_c_sim.' == semidefinite(y_size);
             est_mat_p - mat_a_sim * est_mat_p * mat_a_sim.' == semidefinite(x_size);
     cvx_end;
+    % MATLAB chol() 近似估计
+
 
     % 估计cov_y : R
     est_cov_y = est_rr0 - mat_c_sim * est_mat_p * mat_c_sim.';
