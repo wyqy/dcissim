@@ -140,25 +140,28 @@ function cov_zr = zrRealMoment_nocross_simple(est_rr_moment, mat_a_sim, mat_c_si
         loc_base = loc_base + y_size;
     end
     est_para_b = reshape(est_para_b, [(order-1)*y_size*y_size 1]);
+
     % LS估计
-    % est_para_p = lsqminnorm(est_para_m, est_para_b);
-    % est_mat_p = reshape(est_para_p, [x_size x_size]);
+    est_para_p = lsqminnorm(est_para_m, est_para_b);
+    est_mat_x = reshape(est_para_p, [x_size x_size]);
+    
     % SDP估计
-    cvx_begin sdp quiet;
-        variable est_mat_p(x_size, x_size) symmetric;
-        minimize(norm(est_para_m * vec(est_mat_p) - est_para_b)); %, Inf));
-        subject to;
-            est_mat_p == semidefinite(x_size);
-            est_rr0 - mat_c_sim * est_mat_p * mat_c_sim.' == semidefinite(y_size);
-            est_mat_p - mat_a_sim * est_mat_p * mat_a_sim.' == semidefinite(x_size);
-    cvx_end;
+    % est_rr0_cvx = pinv(mat_c_sim) * est_rr0 * pinv(mat_c_sim).';
+    % cvx_begin sdp quiet;
+    % variable est_mat_x(x_size, x_size) symmetric;
+    % minimize(norm(est_para_m * vec(est_mat_x) - est_para_b));
+    % subject to;
+    %     est_mat_x == semidefinite(x_size);
+    %     est_rr0_cvx - est_mat_x == semidefinite(y_size);
+    %     est_mat_x - mat_a_sim * est_mat_x * mat_a_sim.' == semidefinite(x_size);
+    % cvx_end;
+
     % MATLAB chol() 近似估计
 
-
     % 估计cov_y : R
-    est_cov_y = est_rr0 - mat_c_sim * est_mat_p * mat_c_sim.';
+    est_cov_y = est_rr0 - mat_c_sim * est_mat_x * mat_c_sim.';
     % 估计cov_x : Q
-    est_cov_x = est_mat_p - mat_a_sim * est_mat_p * mat_a_sim.';
+    est_cov_x = est_mat_x - mat_a_sim * est_mat_x * mat_a_sim.';
 
     % 返回值
     cov_zr = blkdiag(est_cov_x, est_cov_y);
